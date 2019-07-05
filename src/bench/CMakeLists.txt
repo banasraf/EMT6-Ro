@@ -1,0 +1,1 @@
+add_bench_sources(EMT6RO_BENCH_SOURCES)

@@ -1,0 +1,78 @@
+{
+  "lattice_dims": {
+    "height": 1,
+    "width": 1
+  },
+  "time_step": 1,
+  "diffusion_params": {
+    "coeffs": {
+      "cho": 1,
+      "ox": 1,
+      "gi": 1
+    },
+    "time_step": 1
+  },
+  "metabolism": {
+    "aerobic_proliferation": {
+      "cho": 1,
+      "ox": 1,
+      "gi": 1
+    },
+    "anaerobic_proliferation": {
+      "cho": 1,
+      "ox": 1,
+      "gi": 1
+    },
+    "aerobic_quiescence": {
+      "cho": 1,
+      "ox": 1,
+      "gi": 1
+    },
+    "anaerobic_quiescence": {
+      "cho": 1,
+      "ox": 1,
+      "gi": 1
+    }
+  },
+  "external_levels": {
+    "cho": 1,
+    "ox": 1,
+    "gi": 1
+  },
+  "death_gi": 1,
+  "quiescence_gi": 1,
+  "death_gi_production": 1,
+  "cycle_times": {
+    "g1": {
+      "mean": 1,
+      "stddev": 1
+    },
+    "s": {
+      "mean": 1,
+      "stddev": 1
+    },
+    "g2": {
+      "mean": 1,
+      "stddev": 1
+    },
+    "m": {
+      "mean": 1,
+      "stddev": 1
+    },
+    "d": {
+      "mean": 1,
+      "stddev": 1
+    }
+  },
+  "cell_repair": {
+    "delay_time": {
+      "coeff": 1,
+      "exp_coeff": 1
+    },
+    "survival_prob": {
+      "coeff": 1,
+      "exp_coeff": 1
+    },
+    "repair_half_time": 1
+  }
+}

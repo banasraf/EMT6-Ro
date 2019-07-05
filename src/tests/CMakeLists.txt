@@ -1,0 +1,1 @@
+add_test_sources(EMT6RO_TESTS_SOURCES)
