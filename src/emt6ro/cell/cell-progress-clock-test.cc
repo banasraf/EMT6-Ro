@@ -42,14 +42,14 @@ TEST_P(ProgressClockTest, ProgressClockTest) {
   }
 }
 
-INSTANTIATE_TEST_SUITE_P(NoProgress, ProgressClockTest, ::testing::Values(
+INSTANTIATE_TEST_SUITE_P(Quiescence, ProgressClockTest, ::testing::Values(
     TestParams{Cell::CyclePhase::G1, Cell::CyclePhase::G1,
                Cell::MetabolicMode::AEROBIC_QUIESCENCE, 0.95, false},
     TestParams{Cell::CyclePhase::G1, Cell::CyclePhase::G1,
                Cell::MetabolicMode::ANAEROBIC_QUIESCENCE, 0.95, false}));
 
 
-INSTANTIATE_TEST_SUITE_P(Progress, ProgressClockTest, ::testing::Values(
+INSTANTIATE_TEST_SUITE_P(Proliferation, ProgressClockTest, ::testing::Values(
     TestParams{Cell::CyclePhase::G1, Cell::CyclePhase::S,
                Cell::MetabolicMode::AEROBIC_PROLIFERATION, 0.95, true},
     TestParams{Cell::CyclePhase::S, Cell::CyclePhase::S,
