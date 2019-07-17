@@ -17,7 +17,7 @@ TEST(MemoryAllocation, SimpleAllocation) {
   scale<<<1, SIZE>>>(ptr.get(), 2.);
   std::vector<float> host_result(SIZE);
   cudaMemcpy(host_result.data(), ptr.get(), SIZE * sizeof(float), cudaMemcpyDeviceToHost);
-  for (auto elem: host_result) {
+  for (auto elem : host_result) {
     ASSERT_FLOAT_EQ(elem, 1.);
   }
 }
