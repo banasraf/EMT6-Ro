@@ -18,7 +18,8 @@ using unique_ptr = std::unique_ptr<T, Deleter>;
 
 template <typename T>
 unique_ptr<T> alloc_unique(size_t count = 1) {
-  static_assert(std::is_trivially_constructible<T>::value);
+  static_assert(std::is_trivially_constructible<T>::value,
+      "Allocated type must be default constructable.");
   T *ptr;
   cudaMalloc(&ptr, count * sizeof(T));
   return {ptr, Deleter{}};
