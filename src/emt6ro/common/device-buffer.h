@@ -3,6 +3,7 @@
 
 #include <vector>
 #include <utility>
+#include <memory>
 #include "emt6ro/common/memory.h"
 
 namespace emt6ro {
@@ -25,13 +26,15 @@ class buffer {
 
   buffer<T> &operator=(const buffer<T> &rhs) {
     size_ = rhs.size();
-    data_ = alloc_unique(size_);
+    data_ = alloc_unique<T>(size_);
     cudaMemcpy(data_.get(), rhs.data(), sizeof(T) * size_, cudaMemcpyDeviceToDevice);
+    return *this;
   }
 
   buffer<T> &operator=(buffer<T> &&rhs) noexcept {
     size_ = rhs.size();
     data_ = std::move(rhs.data_);
+    return *this;
   }
 
   buffer(const buffer<T> &rhs): buffer() {
@@ -42,45 +45,21 @@ class buffer {
     *this = std::move(rhs);
   }
 
-  __host__ __device__ const T *data() const {
+  const T *data() const {
     return data_.get();
   }
 
-  __host__ __device__ T *data() {
+  T *data() {
     return data_.get();
   }
 
-  __device__ const T &operator[](size_t i) const {
-    return data_[i];
-  }
-
-  __device__ T &operator[](size_t i) {
-    return data_[i];
-  }
-
-  __host__ __device__ T *begin() {
-    return data_.get();
-  }
-
-  __host__ __device__ T *end() {
-    return data_.get() + size_;
-  }
-
-  __host__ __device__ const T *begin() const {
-    return data_.get();
-  }
-
-  __host__ __device__ const T *end() const {
-    return data_.get() + size_;
-  }
-
-  __host__ __device__ size_t size() const {
+  size_t size() const {
     return size_;
   }
 
-  std::vector<T> toHost() {
-    std::vector<T> result(size_);
-    cudaMemcpy(result.data(), data_.get(), size_ * sizeof(T), cudaMemcpyDeviceToHost);
+  std::unique_ptr<T[]> toHost() {
+    std::unique_ptr<T[]> result(new T[size_]);
+    cudaMemcpy(result.get(), data_.get(), size_ * sizeof(T), cudaMemcpyDeviceToHost);
     return result;
   }
 

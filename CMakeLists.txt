@@ -13,6 +13,7 @@ set(BENCHMARK_ENABLE_TESTING false)
 add_subdirectory(third-party/benchmark)
 
 # BUILD GOOGLE TEST
+set(GOOGLETEST_VERSION 1.9.0)
 add_subdirectory(third-party/googletest/googletest)
 
 # BUILD NLOHMANN JSON
