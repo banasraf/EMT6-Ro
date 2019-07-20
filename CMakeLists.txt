@@ -1,6 +1,7 @@
 cmake_minimum_required(VERSION 3.10)
 project(emt6ro-simulation LANGUAGES CXX CUDA)
-set(CMAKE_CXX_STANDARD 17)
+set(CMAKE_CXX_STANDARD 14)
+set(CMAKE_CUDA_STANDARD 14)
 
 add_custom_target(lint
         COMMAND ${PROJECT_SOURCE_DIR}/tools/cpplint.py --recursive ${PROJECT_SOURCE_DIR}/src)
@@ -12,6 +13,7 @@ set(BENCHMARK_ENABLE_TESTING false)
 add_subdirectory(third-party/benchmark)
 
 # BUILD GOOGLE TEST
+set(GOOGLETEST_VERSION 1.9.0)
 add_subdirectory(third-party/googletest/googletest)
 
 # BUILD NLOHMANN JSON
