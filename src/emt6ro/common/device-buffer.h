@@ -10,6 +10,7 @@ namespace device {
 
 template <typename T>
 class buffer {
+  static_assert(std::is_pod<T>::value, "");
   device::unique_ptr<T> data_;
   size_t size_;
 
@@ -86,14 +87,6 @@ class buffer {
   static buffer<T> fromHost(const T *data, size_t count) {
     buffer<T> result(count);
     cudaMemcpy(result.data(), data, sizeof(T) * count, cudaMemcpyHostToDevice);
-    return result;
-  }
-
-  template<typename Collection>
-  static buffer<T> fromHost(const Collection &collection) {
-    buffer<T> result(collection.size());
-    cudaMemcpy(result.data(), collection.data(),
-        sizeof(T) * collection.size(), cudaMemcpyHostToDevice);
     return result;
   }
 };
