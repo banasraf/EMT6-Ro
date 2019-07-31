@@ -34,22 +34,22 @@ TEST_P(MetaboliseTest, MetaboliseTest) {
   Substrates base{1, 1, 1};
   switch (cell.mode) {
     case Cell::MetabolicMode::AEROBIC_PROLIFERATION: {
-      base += metabolism.aerobic_proliferation;
+      base -= metabolism.aerobic_proliferation;
       ASSERT_SUBSTRATES_EQ(site_substrates, base);
       break;
     }
     case Cell::MetabolicMode::ANAEROBIC_PROLIFERATION: {
-      base += metabolism.anaerobic_proliferation;
+      base -= metabolism.anaerobic_proliferation;
       ASSERT_SUBSTRATES_EQ(site_substrates, base);
       break;
     }
     case Cell::MetabolicMode::AEROBIC_QUIESCENCE: {
-      base += metabolism.aerobic_quiescence;
+      base -= metabolism.aerobic_quiescence;
       ASSERT_SUBSTRATES_EQ(site_substrates, base);
       break;
     }
     case Cell::MetabolicMode::ANAEROBIC_QUIESCENCE: {
-      base += metabolism.anaerobic_quiescence;
+      base -= metabolism.anaerobic_quiescence;
       ASSERT_SUBSTRATES_EQ(site_substrates, base);
       break;
     }

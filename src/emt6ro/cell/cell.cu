@@ -13,7 +13,7 @@ __host__ __device__ Cell::CyclePhase progressPhase(Cell::CyclePhase current, boo
 
 __host__ __device__ void Cell::metabolise(Substrates& site_substrates,
                                           const Parameters::Metabolism& metabolism) {
-  site_substrates += metabolism.values[static_cast<uint8_t>(mode)];
+  site_substrates -= metabolism.values[static_cast<uint8_t>(mode)];
 }
 
 __host__ __device__ bool Cell::progressClock(float time_step) {
@@ -26,6 +26,11 @@ __host__ __device__ bool Cell::progressClock(float time_step) {
     return phase != current && phase != CyclePhase::D;
   }
   return false;
+}
+__host__ __device__ bool Cell::updateState(const Substrates& levels,
+                                           const Parameters& params,
+                                           uint8_t vacant_neighbors){
+
 }
 
 }  // namespace emt6ro

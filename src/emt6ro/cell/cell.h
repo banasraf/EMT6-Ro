@@ -64,6 +64,8 @@ struct Cell {
    * @param time_step simulation time step
    */
   __host__ __device__ bool progressClock(float time_step);
+
+  __host__ __device__ bool updateState(const Substrates &levels, const Parameters &params, uint8_t vacant_neighbours);
 };
 
 }  // namespace emt6ro
