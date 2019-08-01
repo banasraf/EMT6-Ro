@@ -30,7 +30,10 @@ __host__ __device__ bool Cell::progressClock(float time_step) {
 __host__ __device__ bool Cell::updateState(const Substrates& levels,
                                            const Parameters& params,
                                            uint8_t vacant_neighbors){
+  if (levels.cho < params.metabolism.aerobic_quiescence.cho || levels.gi > params.death_gi)
+    return false;
 
+  return true;
 }
 
 }  // namespace emt6ro
