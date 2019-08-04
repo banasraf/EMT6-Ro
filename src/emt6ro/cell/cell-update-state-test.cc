@@ -55,32 +55,36 @@ INSTANTIATE_TEST_SUITE_P(QuickDeath, UpdateStateTest, ::testing::Values(
 INSTANTIATE_TEST_SUITE_P(G1_S_stopping, UpdateStateTest, ::testing::Values(
     TestParam{{18, 10, 0}, 0, 20, Cell::CyclePhase::M, 19, false, MOCK_MODE},
     TestParam{{44, 7, 0}, 0, 20, Cell::CyclePhase::G1, 19, false, MOCK_MODE},
-    TestParam{{45, 7, 0}, 0, 20, Cell::CyclePhase::G2, 19, true, Cell::MetabolicMode::ANAEROBIC_QUIESCENCE},
-    TestParam{{18, 8, 0}, 0, 20, Cell::CyclePhase::G2, 19, true, Cell::MetabolicMode::AEROBIC_QUIESCENCE}
-    ));
+    TestParam{{45, 7, 0}, 0, 20, Cell::CyclePhase::G2, 19, true,
+              Cell::MetabolicMode::ANAEROBIC_QUIESCENCE},
+    TestParam{{18, 8, 0}, 0, 20, Cell::CyclePhase::G2, 19, true,
+              Cell::MetabolicMode::AEROBIC_QUIESCENCE}));
 
 INSTANTIATE_TEST_SUITE_P(GI_quiescence, UpdateStateTest, ::testing::Values(
     TestParam{{18, 10, 3e-2}, 0, 20, Cell::CyclePhase::M, 15, false, MOCK_MODE},
     TestParam{{44, 7, 3e-2}, 0, 20, Cell::CyclePhase::G1, 15, false, MOCK_MODE},
-    TestParam{{45, 7, 3e-2}, 0, 20, Cell::CyclePhase::G2, 15, true, Cell::MetabolicMode::ANAEROBIC_QUIESCENCE},
-    TestParam{{18, 8, 3e-2}, 0, 20, Cell::CyclePhase::G2, 15, true, Cell::MetabolicMode::AEROBIC_QUIESCENCE}
-    ));
+    TestParam{{45, 7, 3e-2}, 0, 20, Cell::CyclePhase::G2, 15, true,
+              Cell::MetabolicMode::ANAEROBIC_QUIESCENCE},
+    TestParam{{18, 8, 3e-2}, 0, 20, Cell::CyclePhase::G2, 15, true,
+              Cell::MetabolicMode::AEROBIC_QUIESCENCE}));
 
 INSTANTIATE_TEST_SUITE_P(ProliferationFail, UpdateStateTest, ::testing::Values(
     TestParam{{18, 8, 0}, 0, 20, Cell::CyclePhase::M, 15, false, MOCK_MODE},
     TestParam{{44, 7, 0}, 0, 20, Cell::CyclePhase::G1, 15, false, MOCK_MODE},
-    TestParam{{45, 7, 0}, 0, 20, Cell::CyclePhase::G2, 15, true, Cell::MetabolicMode::ANAEROBIC_QUIESCENCE},
-    TestParam{{18, 8, 0}, 0, 20, Cell::CyclePhase::G2, 15, true, Cell::MetabolicMode::AEROBIC_QUIESCENCE}
-    ));
+    TestParam{{45, 7, 0}, 0, 20, Cell::CyclePhase::G2, 15, true,
+              Cell::MetabolicMode::ANAEROBIC_QUIESCENCE},
+    TestParam{{18, 8, 0}, 0, 20, Cell::CyclePhase::G2, 15, true,
+              Cell::MetabolicMode::AEROBIC_QUIESCENCE}));
 
 INSTANTIATE_TEST_SUITE_P(AnaerobicProliferation, UpdateStateTest, ::testing::Values(
-    TestParam{{54, 7, 0}, 0, 20, Cell::CyclePhase::G1, 15, true, Cell::MetabolicMode::ANAEROBIC_PROLIFERATION}
-    ));
+    TestParam{{54, 7, 0}, 0, 20, Cell::CyclePhase::G1, 15, true,
+              Cell::MetabolicMode::ANAEROBIC_PROLIFERATION}));
 
 INSTANTIATE_TEST_SUITE_P(TryAerobicProliferation, UpdateStateTest, ::testing::Values(
-    TestParam{{21, 9, 0}, 0, 20, Cell::CyclePhase::G1, 15, true, Cell::MetabolicMode::AEROBIC_PROLIFERATION},
-    TestParam{{21, 8, 0}, 0, 20, Cell::CyclePhase::G1, 15, true, Cell::MetabolicMode::AEROBIC_QUIESCENCE},
-    TestParam{{21, 8, 0}, 0, 20, Cell::CyclePhase::M, 15, false, MOCK_MODE}
-    ));
+    TestParam{{21, 9, 0}, 0, 20, Cell::CyclePhase::G1, 15, true,
+              Cell::MetabolicMode::AEROBIC_PROLIFERATION},
+    TestParam{{21, 8, 0}, 0, 20, Cell::CyclePhase::G1, 15, true,
+              Cell::MetabolicMode::AEROBIC_QUIESCENCE},
+    TestParam{{21, 8, 0}, 0, 20, Cell::CyclePhase::M, 15, false, MOCK_MODE}));
 
 }  // namespace emt6ro

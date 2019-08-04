@@ -65,7 +65,22 @@ struct Cell {
    */
   __host__ __device__ bool progressClock(float time_step);
 
-  __host__ __device__ bool updateState(const Substrates &levels, const Parameters &params, uint8_t vacant_neighbours);
+  /**
+   * Set metabolic mode of a cell or decide it is dead due to environment conditions.
+   * @param levels - substrate levels on a site occupied by the cell
+   * @param params - simulation parameters
+   * @param vacant_neighbours - number of vacant neighbouring sites
+   * @return true if the cell is still alive, false otherwise
+   */
+  __host__ __device__ bool updateState(const Substrates &levels, const Parameters &params,
+                                       uint8_t vacant_neighbours);
+
+ private:
+  __host__ __device__ bool enterG1SStopping(float time_step, uint8_t vacant_neighbours);
+
+  __host__ __device__ bool tryProliferating(const Substrates &levels, const Parameters &params);
+
+  __host__ __device__ bool tryQuiescence(const Substrates &levels, const Parameters &params);
 };
 
 }  // namespace emt6ro
