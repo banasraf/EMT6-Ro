@@ -10,10 +10,10 @@ struct Substrates {
   float ox;   // oxygen
   float gi;   // metabolism by-products
 
-  __host__ __device__ inline void operator +=(const Substrates &rhs) {
-    cho += rhs.cho;
-    ox += rhs.ox;
-    gi += rhs.gi;
+  __host__ __device__ inline void operator -=(const Substrates &rhs) {
+    cho -= rhs.cho;
+    ox -= rhs.ox;
+    gi -= rhs.gi;
   }
 };
 
