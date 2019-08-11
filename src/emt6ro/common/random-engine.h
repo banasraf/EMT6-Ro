@@ -1,5 +1,5 @@
-#ifndef SRC_EMT6RO_RANDOM_ENGINE_H
-#define SRC_EMT6RO_RANDOM_ENGINE_H
+#ifndef SRC_EMT6RO_COMMON_RANDOM_ENGINE_H_
+#define SRC_EMT6RO_COMMON_RANDOM_ENGINE_H_
 
 #include <cuda_runtime.h>
 #include <curand.h>
@@ -27,7 +27,7 @@ class CuRandEngineState {
 
 class CuRandEngine {
  public:
-  explicit __host__ __device__ CuRandEngine(curandState_t *state): state(state) {};
+  explicit __host__ __device__ CuRandEngine(curandState_t *state): state(state) {}
 
   __device__ float uniform();
 
@@ -38,4 +38,4 @@ class CuRandEngine {
 };
 
 }  // namespace emt6ro
-#endif  // SRC_EMT6RO_RANDOM_ENGINE_H
+#endif  // SRC_EMT6RO_COMMON_RANDOM_ENGINE_H_

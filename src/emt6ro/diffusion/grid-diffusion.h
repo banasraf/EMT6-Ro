@@ -1,5 +1,5 @@
-#ifndef SRC_EMT6RO_DIFFUSION_GRID_DIFFUSION_H
-#define SRC_EMT6RO_DIFFUSION_GRID_DIFFUSION_H
+#ifndef SRC_EMT6RO_DIFFUSION_GRID_DIFFUSION_H_
+#define SRC_EMT6RO_DIFFUSION_GRID_DIFFUSION_H_
 
 #include <cuda_runtime.h>
 #include "emt6ro/site/site.h"
@@ -21,4 +21,4 @@ void copySubstratesBack(Site *sites, const float *cho, const float *ox, const fl
 
 }  // namespace emt6ro
 
-#endif  // SRC_EMT6RO_DIFFUSION_GRID_DIFFUSION_H
+#endif  // SRC_EMT6RO_DIFFUSION_GRID_DIFFUSION_H_

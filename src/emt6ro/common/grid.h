@@ -1,7 +1,7 @@
 #ifndef SRC_EMT6RO_COMMON_GRID_H_
 #define SRC_EMT6RO_COMMON_GRID_H_
-#include <cstdint>
 #include <cuda_runtime.h>
+#include <cstdint>
 
 namespace emt6ro {
 
@@ -28,7 +28,7 @@ struct GridView {
   }
 };
 
-}
+}  // namespace emt6ro
 
 #define GRID_FOR(H, W) \
 for (uint32_t r = threadIdx.y + 1; r < H - 1; r += blockDim.y) \

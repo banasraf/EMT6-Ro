@@ -1,6 +1,6 @@
-#include <cmath>
-#include <cuda_runtime.h>
 #include "emt6ro/diffusion/grid-diffusion.h"
+#include <cuda_runtime.h>
+#include <cmath>
 
 namespace emt6ro {
 
