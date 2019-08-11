@@ -2,6 +2,7 @@ add_subdirectory(site)
 add_subdirectory(cell)
 add_subdirectory(parameters)
 add_subdirectory(common)
+add_subdirectory(diffusion)
 
 add_sources(EMT6RO_SOURCES)
 add_test_sources(EMT6RO_TESTS_SOURCES)
