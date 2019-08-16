@@ -9,7 +9,7 @@ namespace emt6ro {
 
 /// @brief Representation of a site on a simulation lattice
 struct Site {
-  enum class SiteState: uint8_t {
+  enum class State : uint8_t {
     VACANT = 0,  //!< no living cancerous cells on a site
     OCCUPIED = 1,  //!< site occupied by living cancerous cells
     MOCKED = 2  //!<  dummy state for border sites
@@ -17,7 +17,11 @@ struct Site {
 
   Substrates substrates;  //!< site's substrates levels
   Cell cell;
-  SiteState state;
+  State state;
+
+  __host__ __device__ inline uint8_t isOccupied() const {
+    return state == State::OCCUPIED;
+  }
 };
 
 }  // namespace emt6ro

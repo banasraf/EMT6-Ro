@@ -20,7 +20,7 @@ __device__ void diffuse(const GridView<float> &input, GridView<float> &output,
                         float coeff, float time_step) {
   const auto h = input.dims.height;
   const auto w = input.dims.width;
-  GRID_FOR(h, w) {
+  GRID_FOR(1, 1, h - 1, w - 1) {
     auto diag = input(r - 1, c - 1) +
         input(r - 1, c + 1) +
         input(r + 1, c - 1) +
@@ -99,7 +99,7 @@ template <typename Selector>
 __global__ void copySubstrateBack(Site *sites, const float *substrate, uint32_t size) {
   const auto x = blockDim.x * blockIdx.x + threadIdx.x;
   if (x < size) {
-    Selector::select(sites[x]) = substrate[x]l
+    Selector::select(sites[x]) = substrate[x];
   }
 }
 
