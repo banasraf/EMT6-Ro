@@ -49,7 +49,7 @@ __global__ void diffuseKernel(float *data, Dims dims,
 }
 }  // namespace
 
-void batchDiffuse(float *data, size_t batch_size, Dims dims,
+void batchDiffuse(float *data, Dims dims, size_t batch_size,
                   float coeff, float time_step, uint32_t steps) {
   diffuseKernel<<<batch_size, dim3(32, 32), dims.vol() * sizeof(float)>>>
     (data, dims, coeff, time_step, steps);

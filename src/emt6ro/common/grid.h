@@ -9,7 +9,7 @@ struct Dims {
   uint32_t height;
   uint32_t width;
 
-  inline __host__ __device__ uint32_t vol() {
+  inline __host__ __device__ uint32_t vol() const {
     return height * width;
   }
 };

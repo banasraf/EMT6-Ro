@@ -68,6 +68,10 @@ class buffer {
     cudaMemcpy(result.data(), data, sizeof(T) * count, cudaMemcpyHostToDevice);
     return result;
   }
+
+  void copyHost(const T *data, size_t count, size_t dest_offset = 0) {
+    cudaMemcpy(data_.get() + dest_offset, data, sizeof(T) * count, cudaMemcpyHostToDevice);
+  }
 };
 
 }  // namespace device

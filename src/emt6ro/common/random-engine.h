@@ -11,7 +11,7 @@ namespace emt6ro {
 
 class CuRandEngineState {
  public:
-  CuRandEngineState(size_t size, uint32_t *seeds);
+  CuRandEngineState(size_t size, const uint32_t *seeds);
 
   inline const curandState_t *states() const {
     return state_.data();

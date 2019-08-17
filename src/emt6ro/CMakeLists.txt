@@ -4,6 +4,7 @@ add_subdirectory(parameters)
 add_subdirectory(common)
 add_subdirectory(diffusion)
 add_subdirectory(division)
+add_subdirectory(simulation)
 
 add_sources(EMT6RO_SOURCES)
 add_test_sources(EMT6RO_TESTS_SOURCES)
