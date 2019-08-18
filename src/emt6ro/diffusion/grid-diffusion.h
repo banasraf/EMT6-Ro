@@ -7,6 +7,9 @@
 
 namespace emt6ro {
 
+__host__ __device__ double paramDiffusion(float val, float coeff, float tau,
+                                          float ortho_sum, float diag_sum);
+
 __device__ void diffuse(const GridView<float> &input, GridView<float> &output,
                         float coeff, float time_step);
 

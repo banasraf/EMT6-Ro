@@ -4,17 +4,12 @@
 
 namespace emt6ro {
 
-namespace {
-
-__device__ double paramDiffusion(float val, float coeff, float tau,
+__host__ __device__ double paramDiffusion(float val, float coeff, float tau,
                                  float ortho_sum, float diag_sum) {
-  constexpr float HS = M_SQRT2;
+  constexpr float HS = 2 * M_SQRT2f32;
   constexpr float f = 4. + HS;
-  return (coeff*tau*HS)/f * (ortho_sum + M_SQRT1_2*diag_sum - f*val) + val;
+  return (coeff*tau*HS)/f * (ortho_sum + M_SQRT1_2f32*diag_sum - f*val) + val;
 }
-
-
-}  // namespace
 
 __device__ void diffuse(const GridView<float> &input, GridView<float> &output,
                         float coeff, float time_step) {
@@ -40,6 +35,9 @@ __global__ void diffuseKernel(float *data, Dims dims,
   extern __shared__ float tmp[];
   GridView<float> data_view{data + blockIdx.x * dims.vol(), dims};
   GridView<float> tmp_view{tmp, dims};
+  GRID_FOR(0, 0, dims.height, dims.width) {
+    tmp_view(r, c) = data_view(r, c);
+  }
   for (uint32_t i = 0; i < steps; i += 2) {
     diffuse(data_view, tmp_view, coeff, time_step);
     __syncthreads();

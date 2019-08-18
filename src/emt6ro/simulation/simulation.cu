@@ -1,9 +1,10 @@
 #include <algorithm>
 #include <cassert>
+#include <iostream>
 #include <random>
-#include "emt6ro/simulation/simulation.h"
 #include "emt6ro/diffusion/grid-diffusion.h"
 #include "emt6ro/division/cell-division.h"
+#include "emt6ro/simulation/simulation.h"
 
 namespace emt6ro {
 
@@ -34,15 +35,16 @@ void copyLattice(device::buffer<Site> &data, uint32_t batch, const GridView<Site
 
 __global__ void vacantNeighboursKernel(GridView<Site> *views, uint8_t *results) {
   auto &view = views[blockIdx.x];
+//  view(threadIdx.y, threadIdx.x).substrates.gi = 0;
   GridView<uint8_t> result_view{results + view.dims.vol() * blockIdx.x, view.dims};
   GRID_FOR(1, 1, view.dims.height - 1, view.dims.width - 1) {
-    result_view(r, c) = view(r - 1, c - 1).isOccupied() +
-                        view(r - 1, c).isOccupied() +
-                        view(r - 1, c + 1).isOccupied() +
-                        view(r, c - 1).isOccupied() +
-                        view(r, c + 1).isOccupied() +
-                        view(r + 1, c - 1).isOccupied() +
-                        view(r + 1, c).isOccupied() +
+    result_view(r, c) = 8 - view(r - 1, c - 1).isOccupied() -
+                        view(r - 1, c).isOccupied() -
+                        view(r - 1, c + 1).isOccupied() -
+                        view(r, c - 1).isOccupied() -
+                        view(r, c + 1).isOccupied() -
+                        view(r + 1, c - 1).isOccupied() -
+                        view(r + 1, c).isOccupied() -
                         view(r + 1, c + 1).isOccupied();
   }
 }
@@ -52,19 +54,18 @@ __global__ void cellSimulationKernel(Site *sites, uint32_t sites_count, uint8_t 
   auto idx = blockDim.x * blockIdx.x + threadIdx.x;
   if (idx >= sites_count) return;
   auto &site = sites[idx];
-  if (site.state != Site::State::OCCUPIED) return;
+  if (!site.isOccupied()) return;
   uint8_t alive = site.cell.updateState(sites[idx].substrates, *params, vacant[idx]);
   site.state = static_cast<Site::State>(alive);
-  if (alive) {
-    site.cell.metabolise(site.substrates, params->metabolism);
-    site.cell.progressClock(params->time_step);
-  }
+  if (!alive) return;
+  site.cell.metabolise(site.substrates, params->metabolism);
+  site.cell.progressClock(params->time_step);
 }
 
 __global__ void cellDivisionKernel(GridView<Site> *lattices, Parameters *params,
                                    curandState_t *rand_states) {
   curandState_t *rand_state =
-      rand_states + blockDim.x * blockDim.y * blockIdx.x + blockDim.y * threadIdx.y + threadIdx.x;
+      rand_states + blockDim.x * blockDim.y * blockIdx.x + blockDim.x * threadIdx.y + threadIdx.x;
   CuRandEngine rand(rand_state);
   auto &lattice = lattices[blockIdx.x];
   divideCells(lattice, *params, rand);
@@ -116,6 +117,10 @@ void Simulation::diffuse() {
 void Simulation::calculateVacantNeighbours() {
   detail::vacantNeighboursKernel<<<batch_size, dim3(CuBlockDimX, CuBlockDimY)>>>
     (lattices.data(), vacant_neighbours.data());
+  auto code = cudaPeekAtLastError();
+  if (code != cudaSuccess) {
+    std::cout << "error: " << cudaGetErrorString(code) << std::endl;
+  }
 }
 
 void Simulation::simulateCells() {
@@ -127,8 +132,12 @@ void Simulation::simulateCells() {
 }
 
 void Simulation::cellDivision() {
-  detail::cellDivisionKernel<<<batch_size, dim3(CuBlockDimX, CuBlockDimY)>>>
+  detail::cellDivisionKernel<<<batch_size, dim3(CuBlockDimX/2, CuBlockDimY/2)>>>
     (lattices.data(), d_params.get(), rand_state.states());
+  auto code = cudaPeekAtLastError();
+  if (code != cudaSuccess) {
+    std::cout << "error: " << cudaGetErrorString(code) << std::endl;
+  }
 }
 
 }  // namespace emt6ro

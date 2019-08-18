@@ -9,8 +9,8 @@ __device__ void divideCells(GridView<Site> &lattice, const Parameters &params, C
       GRID_FOR(0, 0, (lattice.dims.height + 2) / 3, (lattice.dims.width + 2) / 3) {
           const auto rr = 3 * r + conv_r;
           const auto cc = 3 * c + conv_c;
-          if (rr < lattice.dims.height - 1 && cc < lattice.dims.width) {
-            if (lattice(rr, cc).state == Site::State::OCCUPIED) {
+          if (rr < lattice.dims.height - 1 && cc < lattice.dims.width - 1) {
+            if (lattice(rr, cc).isOccupied()) {
               auto &cell = lattice(rr, cc).cell;
               if (cell.phase == Cell::CyclePhase::D) {
                 auto neighbour = chooseNeighbour(rr, cc, rand);

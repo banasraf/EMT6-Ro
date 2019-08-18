@@ -38,7 +38,7 @@ class Simulation {
 
   void step();
 
- private:
+
   void calculateVacantNeighbours();
 
   void diffuse();

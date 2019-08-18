@@ -62,12 +62,14 @@ __host__ __device__ bool Cell::tryQuiescence(const Substrates &levels, const Par
 }
 
 __host__ __device__ bool Cell::enterG1SStopping(float time_step, uint8_t vacant_neighbours) {
-  return proliferation_time > (cycle_times.g1 - 2*time_step) &&
+  return proliferation_time > (cycle_times.g1 - 2*time_step / 3600.f) &&
          phase == CyclePhase::G1 && vacant_neighbours == 0;
 }
 
 __host__ __device__ bool Cell::updateState(const Substrates &levels, const Parameters &params,
                                            uint8_t vacant_neighbors) {
+  if (proliferation_time > cycle_times.d - params.time_step / 3600.f)
+    return false;
   if (!enterG1SStopping(params.time_step, vacant_neighbors)) {
     if (tryProliferating(levels, params)) {
       return true;
