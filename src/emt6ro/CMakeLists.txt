@@ -16,3 +16,4 @@ target_link_libraries(emt6ro PRIVATE nlohmann_json::nlohmann_json)
 target_include_directories(emt6ro PUBLIC
         $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/src>
         $<INSTALL_INTERFACE:include/emt6ro>)
+set_property(TARGET emt6ro PROPERTY INTERPROCEDURAL_OPTIMIZATIO TRUE)

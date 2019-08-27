@@ -73,7 +73,7 @@ struct Cell {
    * @return true if the cell is still alive, false otherwise
    */
   __host__ __device__ bool updateState(const Substrates &levels, const Parameters &params,
-                                       uint8_t vacant_neighbours);
+                                       uint8_t vacant_neighbours, uint8_t &meta);
 
  private:
   __host__ __device__ bool enterG1SStopping(float time_step, uint8_t vacant_neighbours);

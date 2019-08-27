@@ -31,7 +31,7 @@
     "anaerobic_quiescence": {
       "cho": 45,
       "ox": 0,
-      "gi": 3.0000000000000009E-5
+      "gi": -3.0000000000000009E-5
     }
   },
   "external_levels": {

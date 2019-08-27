@@ -18,6 +18,7 @@ struct Site {
   Substrates substrates;  //!< site's substrates levels
   Cell cell;
   State state;
+  uint8_t meta;
 
   __host__ __device__ inline uint8_t isOccupied() const {
     return state == State::OCCUPIED;

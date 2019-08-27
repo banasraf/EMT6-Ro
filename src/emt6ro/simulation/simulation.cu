@@ -55,7 +55,7 @@ __global__ void cellSimulationKernel(Site *sites, uint32_t sites_count, uint8_t 
   if (idx >= sites_count) return;
   auto &site = sites[idx];
   if (!site.isOccupied()) return;
-  uint8_t alive = site.cell.updateState(sites[idx].substrates, *params, vacant[idx]);
+  uint8_t alive = site.cell.updateState(sites[idx].substrates, *params, vacant[idx], site.meta);
   site.state = static_cast<Site::State>(alive);
   if (!alive) return;
   site.cell.metabolise(site.substrates, params->metabolism);

@@ -4,8 +4,8 @@
 #include "emt6ro/diffusion/grid-diffusion.h"
 #include "emt6ro/simulation/simulation.h"
 
-const uint32_t DIM = 53;
-const uint32_t BATCH_SIZE = 100;
+const uint32_t DIM = 22;
+const uint32_t BATCH_SIZE = 10;
 
 using emt6ro::Site;
 using emt6ro::GridView;
@@ -45,28 +45,33 @@ static void experiment() {
       }
     }
   }
-  auto &site = lattice(26, 26);
+  auto &site = lattice(11, 11);
   site.state = Site::State::OCCUPIED;
   Rand rand(123);
   site.cell = emt6ro::createCell(params, rand);
   auto simulation = emt6ro::Simulation::FromSingleHost(lattice, BATCH_SIZE, params, 123);
 //  simulation.cellDivision();
-  for (uint32_t s = 0; s < 20*24*600; ++s)
+  for (uint32_t s = 0; s < 20*12*601; ++s)
     simulation.step();
   auto data2 = simulation.data.toHost();
-  GridView<Site> lattice2{data2.get() + Dims{DIM, DIM}.vol() * 100, Dims{DIM, DIM}};
+  GridView<Site> lattice2{data2.get() + Dims{DIM, DIM}.vol() * 5, Dims{DIM, DIM}};
   for (uint32_t r = 1; r < DIM - 1; ++r) {
     for (uint32_t c = 1; c < DIM - 1; ++c) {
+//      std::cout << (int) lattice2(r, c).meta << " ";
 //      std::cout << lattice2(r, c).cell.cycle_times.d << " ";
-//      std::cout << (int) lattice2(r, c).cell.mode << " ";
+//      if (lattice2(r, c).isOccupied())
+//        std::cout << (int) lattice2(r, c).cell.mode << " ";
+//      else
+//        std::cout << "· ";
 //      std::cout << lattice2(r, c).cell.proliferation_time << " ";
 //      std::cout << lattice2(r, c).substrates.gi << " ";
-      std::cout << (int) lattice2(r, c).state << " ";
+      if (lattice2(r, c).isOccupied()) std::cout << "● "; else std::cout << "· ";
+//      std::cout << (int) lattice2(r, c).state << " ";
 //      std::cout << (int) lattice2(r, c).cell.phase << " ";
     }
     std::cout << std::endl;
   }
-  std::cout << lattice2(26, 26).substrates.gi << std::endl;
+  std::cout << lattice2(11, 11).substrates.cho << std::endl;
 }
 
 static void diffusion_exp() {
