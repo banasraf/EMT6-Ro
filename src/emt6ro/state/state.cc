@@ -51,5 +51,5 @@ HostGrid<Site> loadFromFile(const std::string& filename, const Parameters &param
   return grid;
 }
 
-}
+}  // namespace emt6ro
 

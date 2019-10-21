@@ -1,5 +1,5 @@
-#ifndef SRC_EMT6RO_SITE_SITE_H_
-#define SRC_EMT6RO_SITE_SITE_H_
+#ifndef EMT6RO_SITE_SITE_H_
+#define EMT6RO_SITE_SITE_H_
 
 #include <cstdint>
 #include "emt6ro/cell/cell.h"
@@ -29,4 +29,4 @@ struct Site {
 };
 
 }  // namespace emt6ro
-#endif  // SRC_EMT6RO_SITE_SITE_H_
+#endif  // EMT6RO_SITE_SITE_H_

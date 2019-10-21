@@ -1,5 +1,5 @@
-#ifndef SRC_EMT6RO_COMMON_GRID_H_
-#define SRC_EMT6RO_COMMON_GRID_H_
+#ifndef EMT6RO_COMMON_GRID_H_
+#define EMT6RO_COMMON_GRID_H_
 #include <cuda_runtime.h>
 #include <cstdint>
 #include <memory>
@@ -20,6 +20,7 @@ struct Coords {
   int32_t c;
 };
 
+/// Region of interest
 struct ROI {
   Coords origin;
   Dims dims;
@@ -49,7 +50,7 @@ struct GridView {
 
 template <typename T>
 class HostGrid {
-  std::unique_ptr<T> data_;
+  std::unique_ptr<T[]> data_;
   GridView<T> view_;
 
  public:
@@ -62,8 +63,11 @@ class HostGrid {
 
 }  // namespace emt6ro
 
+static constexpr uint32_t CuBlockDimX = 32;
+static constexpr uint32_t CuBlockDimY = 32;
+
 #define GRID_FOR(START_R, START_C, END_R, END_C) \
 for (int32_t r = threadIdx.y + START_R; r < END_R; r += blockDim.y) \
   for (int32_t c = threadIdx.x + START_C; c < END_C; c += blockDim.x)
 
-#endif  // SRC_EMT6RO_COMMON_GRID_H_
+#endif  // EMT6RO_COMMON_GRID_H_

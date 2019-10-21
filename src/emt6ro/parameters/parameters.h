@@ -1,5 +1,5 @@
-#ifndef SRC_EMT6RO_PARAMETERS_PARAMETERS_H_
-#define SRC_EMT6RO_PARAMETERS_PARAMETERS_H_
+#ifndef EMT6RO_PARAMETERS_PARAMETERS_H_
+#define EMT6RO_PARAMETERS_PARAMETERS_H_
 
 #include <string>
 #include "emt6ro/common/grid.h"
@@ -73,4 +73,4 @@ struct Parameters {
 
 }  // namespace emt6ro
 
-#endif  // SRC_EMT6RO_PARAMETERS_PARAMETERS_H_
+#endif  // EMT6RO_PARAMETERS_PARAMETERS_H_

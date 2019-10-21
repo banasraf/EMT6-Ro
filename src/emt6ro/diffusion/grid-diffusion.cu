@@ -4,6 +4,9 @@
 #include <cuda_device_runtime_api.h>
 #include <cmath>
 #include <iostream>
+#include <cassert>
+#include <algorithm>
+#include "emt6ro/common/debug.h"
 
 namespace emt6ro {
 
@@ -79,12 +82,13 @@ __global__ void diffKernel(GridView<Site> *lattices, const ROI *rois, Substrates
   copyLatticeBack(lattices[bid], rois[bid], temp_lattice);
 }
 
-void batchDiffuse2(GridView<Site> *lattices, const ROI *rois, Substrates *temp_mem,
+void batchDiffuse(GridView<Site> *lattices, const ROI *rois, Substrates *temp_mem,
                    Dims max_dims, const Substrates &coeffs, const Substrates &ext_levels,
                    uint32_t batch_size, float time_step, uint32_t steps) {
+  assert(steps % 2 == 0);
   const auto b_dims = Dims{max_dims.height + 2, max_dims.width + 2};
-  auto box_h = b_dims.height < 32 ? b_dims.height : 32;
-  auto box_w = b_dims.width < 32 ? b_dims.width : 32;
+  auto box_h = b_dims.height < CuBlockDimY ? b_dims.height : CuBlockDimY;
+  auto box_w = b_dims.width < CuBlockDimX ? b_dims.width : CuBlockDimX;
   diffKernel<<<batch_size, dim3(box_w, box_h), b_dims.vol() * sizeof(Substrates)>>>
     (lattices, rois, temp_mem, coeffs, time_step, steps, ext_levels);
   KERNEL_DEBUG("diffuse")
@@ -151,7 +155,9 @@ __global__ void findBoundariesKernel(const GridView<Site> *lattices, ROI *rois) 
 }
 
 void findTumorsBoundaries(const GridView<Site> *lattices, ROI *rois, uint32_t batch_size) {
-  findBoundariesKernel<<<batch_size, dim3(32, 32), 32*32*2*sizeof(MinMax)>>>(lattices, rois);
+  findBoundariesKernel
+    <<<batch_size, dim3(CuBlockDimX, CuBlockDimY), CuBlockDimX*CuBlockDimY*2*sizeof(MinMax)>>>
+    (lattices, rois);
   KERNEL_DEBUG("tumor boundaries")
 }
 

@@ -1,8 +1,8 @@
-#ifndef EMT6RO_SIMULATION_PROTOCOL_H
-#define EMT6RO_SIMULATION_PROTOCOL_H
+#ifndef EMT6RO_COMMON_PROTOCOL_H_
+#define EMT6RO_COMMON_PROTOCOL_H_
 
-#include <cstdint>
 #include <cuda_runtime.h>
+#include <cstdint>
 
 namespace emt6ro {
 struct Protocol {
@@ -18,4 +18,4 @@ struct Protocol {
   float *data_;
 };
 }  // namespace emt6ro
-#endif  // EMT6RO_SIMULATION_PROTOCOL_H
+#endif  // EMT6RO_COMMON_PROTOCOL_H_

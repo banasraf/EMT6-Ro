@@ -1,20 +1,8 @@
-#ifndef SRC_EMT6RO_COMMON_SUBSTRATES_H_
-#define SRC_EMT6RO_COMMON_SUBSTRATES_H_
+#ifndef EMT6RO_COMMON_SUBSTRATES_H_
+#define EMT6RO_COMMON_SUBSTRATES_H_
 
 #include <cuda_runtime.h>
 #include <type_traits>
-
-constexpr bool DEBUG = false;
-
-#define KERNEL_DEBUG(name) \
-if (DEBUG) { \
-  cudaDeviceSynchronize(); \
-  auto code = cudaPeekAtLastError();\
-  if (code != cudaSuccess) { \
-    std::cout << "error in " << name << ": " << cudaGetErrorString(code) << std::endl; \
-    exit(-1); \
-  } \
-}
 
 namespace emt6ro {
 
@@ -82,13 +70,10 @@ struct Substrates {
     auto c = *this;
     return c /= f;
   }
-
-//  __host__ __device__ Substrates &operator =(const Substrates &rhs) = default;
-
 };
 
-static_assert(std::is_pod<Substrates>::value, "");
+static_assert(std::is_pod<Substrates>::value, "Substrates must be POD");
 
 }  // namespace emt6ro
 
-#endif  // SRC_EMT6RO_COMMON_SUBSTRATES_H_
+#endif  // EMT6RO_COMMON_SUBSTRATES_H_

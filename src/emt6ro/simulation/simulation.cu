@@ -2,9 +2,11 @@
 #include <cassert>
 #include <iostream>
 #include <random>
+#include <vector>
 #include "emt6ro/diffusion/grid-diffusion.h"
 #include "emt6ro/division/cell-division.h"
 #include "emt6ro/simulation/simulation.h"
+#include "emt6ro/common/debug.h"
 
 namespace emt6ro {
 
@@ -124,13 +126,17 @@ void Simulation::step() {
 }
 
 void Simulation::diffuse() {
-  batchDiffuse2(lattices.data(), rois.data(), diffusion_tmp_data.data(), Dims{51, 51},
-                params.diffusion_params.coeffs, params.external_levels, batch_size,
-                params.diffusion_params.time_step, 24);
+  batchDiffuse(lattices.data(), rois.data(), diffusion_tmp_data.data(),
+               Dims{dims.height - 2, dims.width - 2},
+               params.diffusion_params.coeffs, params.external_levels, batch_size,
+               params.diffusion_params.time_step,
+               static_cast<int32_t>(params.time_step / params.diffusion_params.time_step));
 }
 
 void Simulation::simulateCells() {
-  detail::cellSimulationKernel<<<batch_size, dim3(32, 32), 51*51* sizeof(uint8_t)>>>
+  auto mem_size = (dims.height - 2) * (dims.width - 2) * sizeof(uint8_t);
+  detail::cellSimulationKernel
+    <<<batch_size, dim3(CuBlockDimX, CuBlockDimY), mem_size>>>
     (lattices.data(), rois.data(), d_params.get(), rand_state.states(), protocols.data(), step_);
   KERNEL_DEBUG("simulate cells")
 }

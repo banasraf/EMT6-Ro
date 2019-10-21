@@ -1,6 +1,6 @@
 #include "emt6ro/cell/cell.h"
-#include <cmath>
 #include <cuda_runtime_api.h>
+#include <cmath>
 
 namespace emt6ro {
 

@@ -1,9 +1,10 @@
-#ifndef SRC_EMT6RO_COMMON_RANDOM_ENGINE_H_
-#define SRC_EMT6RO_COMMON_RANDOM_ENGINE_H_
+#ifndef EMT6RO_COMMON_RANDOM_ENGINE_H_
+#define EMT6RO_COMMON_RANDOM_ENGINE_H_
 
 #include <cuda_runtime.h>
 #include <curand.h>
 #include <curand_kernel.h>
+#include <random>
 #include "emt6ro/parameters/parameters.h"
 #include "emt6ro/common/device-buffer.h"
 
@@ -37,5 +38,17 @@ class CuRandEngine {
   curandState_t *state;
 };
 
+class HostRandEngine {
+ public:
+  explicit HostRandEngine(uint32_t seed): gen{seed} {}
+
+  float uniform();
+
+  float normal(const Parameters::NormalDistribution &params);
+
+ private:
+  std::mt19937 gen;
+};
+
 }  // namespace emt6ro
-#endif  // SRC_EMT6RO_COMMON_RANDOM_ENGINE_H_
+#endif  // EMT6RO_COMMON_RANDOM_ENGINE_H_

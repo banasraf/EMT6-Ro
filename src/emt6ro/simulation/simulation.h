@@ -1,5 +1,5 @@
-#ifndef EMT6RO_SIMULATION_SIMULATION_H
-#define EMT6RO_SIMULATION_SIMULATION_H
+#ifndef EMT6RO_SIMULATION_SIMULATION_H_
+#define EMT6RO_SIMULATION_SIMULATION_H_
 
 #include "emt6ro/common/random-engine.h"
 #include "emt6ro/common/device-buffer.h"
@@ -11,7 +11,6 @@ namespace emt6ro {
 
 class Simulation {
  public:
-
   Simulation(Dims dims, uint32_t batch_size, const Parameters &parameters,
              const device::buffer<uint32_t> &seeds)
   : batch_size(batch_size)
@@ -42,9 +41,6 @@ class Simulation {
 
   void updateROIs();
 
-  static const uint32_t CuBlockDimX = 32;
-  static const uint32_t CuBlockDimY = 32;
-
   size_t batch_size;
   Dims dims;
   Parameters params;
@@ -59,6 +55,6 @@ class Simulation {
   uint32_t step_ = 0;
 };
 
-}
+}  // namespace emt6ro
 
-#endif //EMT6RO_SIMULATION_SIMULATION_H
+#endif  // EMT6RO_SIMULATION_SIMULATION_H_

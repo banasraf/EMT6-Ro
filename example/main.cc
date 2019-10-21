@@ -21,23 +21,7 @@ using emt6ro::Parameters;
 using emt6ro::Protocol;
 using emt6ro::device::buffer;
 
-class Rand {
- public:
-  explicit Rand(uint32_t seed): gen{seed} {}
 
-  float uniform() {
-    std::uniform_real_distribution<float> dist(0, 1);
-    return dist(gen);
-  }
-
-  float normal(const Parameters::NormalDistribution &params) {
-    std::normal_distribution<float> dist(params.mean, params.stddev);
-    return dist(gen);
-  }
-
- private:
-  std::mt19937 gen;
-};
 
 static void experiment() {
   auto params = Parameters::loadFromJSONFile("../data/default-parameters.json");
@@ -47,7 +31,6 @@ static void experiment() {
   protocol_data_h[2 * 24 * 2] = 2.5;
   protocol_data_h[2 * 24 * 2 + 12 * 2] = 2.5;
   auto protocol_data = buffer<float>::fromHost(protocol_data_h.data(), 5 * 24 * 2);
-  KERNEL_DEBUG("copy protocols")
   Protocol protocol{300, 5 * 24 * 2 * 300, protocol_data.data()};
   std::random_device rd{};
   auto simulation = emt6ro::Simulation::FromSingleHost(state.view(), BATCH_SIZE, params, protocol, rd());

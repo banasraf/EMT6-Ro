@@ -1,5 +1,5 @@
-#ifndef SRC_EMT6RO_DIVISION_CELL_DIVISION_H_
-#define SRC_EMT6RO_DIVISION_CELL_DIVISION_H_
+#ifndef EMT6RO_DIVISION_CELL_DIVISION_H_
+#define EMT6RO_DIVISION_CELL_DIVISION_H_
 
 #include <emt6ro/common/random-engine.h>
 #include <cmath>
@@ -57,4 +57,4 @@ __device__ void divideCells(GridView<Site> &lattice, const Parameters &params, C
 
 }  // namespace emt6ro
 
-#endif  // SRC_EMT6RO_DIVISION_CELL_DIVISION_H_
+#endif  // EMT6RO_DIVISION_CELL_DIVISION_H_

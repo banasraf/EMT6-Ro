@@ -1,5 +1,5 @@
-#ifndef SRC_EMT6RO_CELL_CELL_H_
-#define SRC_EMT6RO_CELL_CELL_H_
+#ifndef EMT6RO_CELL_CELL_H_
+#define EMT6RO_CELL_CELL_H_
 
 /// @file cell.h
 
@@ -42,11 +42,11 @@ struct Cell {
     };
   };
 
-  float time_in_repair;
-  float irradiation;
+  float time_in_repair;  //!< time spent on repairing after irradiation
+  float irradiation;  //!< irradiation level in Grays
   float repair_delay_time;
-  float proliferation_time;
-  CycleTimes cycle_times;
+  float proliferation_time;  //!< cell proliferation clock
+  CycleTimes cycle_times;  //!< phase switch times - constant during cell lifetime
   MetabolicMode mode;
   CyclePhase phase;
 
@@ -76,10 +76,28 @@ struct Cell {
   __host__ __device__ bool updateState(const Substrates &levels, const Parameters &params,
                                        uint8_t vacant_neighbours);
 
+  /**
+   * Recalculate the repair delay time. Should be always called after setting `irradiation` manually
+   * @param params - simulation parameters
+   */
   __host__ __device__ void calcDelayTime(const Parameters::CellRepair &params);
 
+  /**
+   * Apply an irradiation dose
+   * @param dose - irradiation dose in Grays
+   * @param params - cell repair module parameters
+   */
   __host__ __device__ void irradiate(float dose, const Parameters::CellRepair &params);
 
+  /**
+   *
+   * @tparam R - random engine type
+   * @param params - cell repair module parameters
+   * @param cycle_changed - whether the major cycle change occurred in the current step
+   * @param time_step - simulation time step
+   * @param rand - random engine
+   * @return true if the cell is still alive, false otherwise
+   */
   template <typename R>
   __host__ __device__ bool tryRepair(const Parameters::CellRepair &params, bool cycle_changed,
                                      float time_step, R &rand) {
@@ -111,4 +129,4 @@ struct Cell {
 
 }  // namespace emt6ro
 
-#endif  // SRC_EMT6RO_CELL_CELL_H_
+#endif  // EMT6RO_CELL_CELL_H_

@@ -7,7 +7,7 @@ include_directories(${CMAKE_CUDA_TOOLKIT_INCLUDE_DIRECTORIES})
 add_compile_options($<$<COMPILE_LANGUAGE:CUDA>:-dc>)
 
 add_custom_target(lint
-        COMMAND ${PROJECT_SOURCE_DIR}/tools/cpplint.py --recursive ${PROJECT_SOURCE_DIR}/src)
+        COMMAND ${PROJECT_SOURCE_DIR}/tools/cpplint.py --root=${PROJECT_SOURCE_DIR}/src --recursive ${PROJECT_SOURCE_DIR}/src)
 
 include(cmake/CollectSources.cmake)
 
