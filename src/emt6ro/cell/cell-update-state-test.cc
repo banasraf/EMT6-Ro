@@ -28,10 +28,11 @@ class UpdateStateTest : public testing::TestWithParam<TestParam> {
     params.metabolism.anaerobic_quiescence = {45, 0, -3e-5};
     params.death_gi = 5e-2;
     params.quiescence_gi = 2e-2;
-    params.time_step = 1;
+    params.time_step = 3600;
 
     cell.phase = GetParam().phase;
     cell.cycle_times.g1 = GetParam().g1_time;
+    cell.cycle_times.d = 100;
     cell.proliferation_time = GetParam().proliferation_time;
   }
 
@@ -55,9 +56,9 @@ INSTANTIATE_TEST_SUITE_P(QuickDeath, UpdateStateTest, ::testing::Values(
 INSTANTIATE_TEST_SUITE_P(G1_S_stopping, UpdateStateTest, ::testing::Values(
     TestParam{{18, 10, 0}, 0, 20, Cell::CyclePhase::M, 19, false, MOCK_MODE},
     TestParam{{44, 7, 0}, 0, 20, Cell::CyclePhase::G1, 19, false, MOCK_MODE},
-    TestParam{{45, 7, 0}, 0, 20, Cell::CyclePhase::G2, 19, true,
+    TestParam{{45, 7, 0}, 0, 20, Cell::CyclePhase::G2, 21, true,
               Cell::MetabolicMode::ANAEROBIC_QUIESCENCE},
-    TestParam{{18, 8, 0}, 0, 20, Cell::CyclePhase::G2, 19, true,
+    TestParam{{18, 8, 0}, 0, 20, Cell::CyclePhase::G2, 21, true,
               Cell::MetabolicMode::AEROBIC_QUIESCENCE}));
 
 INSTANTIATE_TEST_SUITE_P(GI_quiescence, UpdateStateTest, ::testing::Values(

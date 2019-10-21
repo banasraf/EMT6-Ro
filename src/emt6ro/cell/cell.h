@@ -74,7 +74,7 @@ struct Cell {
    * @return true if the cell is still alive, false otherwise
    */
   __host__ __device__ bool updateState(const Substrates &levels, const Parameters &params,
-                                       uint8_t vacant_neighbours, uint8_t &meta);
+                                       uint8_t vacant_neighbours);
 
   __host__ __device__ void calcDelayTime(const Parameters::CellRepair &params);
 

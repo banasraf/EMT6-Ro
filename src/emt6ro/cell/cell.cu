@@ -70,7 +70,7 @@ __host__ __device__ bool Cell::enterG1SStopping(float time_step, uint8_t vacant_
 }
 
 __host__ __device__ bool Cell::updateState(const Substrates &levels, const Parameters &params,
-                                           uint8_t vacant_neighbors, uint8_t &meta) {
+                                           uint8_t vacant_neighbors) {
   if (proliferation_time >= cycle_times.d - params.time_step / 3600.f)
     return false;
   if (!enterG1SStopping(params.time_step, vacant_neighbors)) {
@@ -78,13 +78,7 @@ __host__ __device__ bool Cell::updateState(const Substrates &levels, const Param
       return true;
     }
   }
-  bool r = tryQuiescence(levels, params);
-  if (!r) {
-    meta = levels.ox < params.metabolism.aerobic_quiescence.ox;
-    meta |= (uint8_t)(levels.cho < params.metabolism.anaerobic_quiescence.cho) << 1U;
-    meta |= (uint8_t)mode << 2U;
-  }
-  return r;
+  return tryQuiescence(levels, params);
 }
 
 __host__ __device__ void Cell::irradiate(float dose, const Parameters::CellRepair &params) {

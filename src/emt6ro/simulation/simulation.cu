@@ -73,7 +73,7 @@ __global__ void cellSimulationKernel(GridView<Site> *grids, ROI *rois,
     auto &site = grid(r, c);
     if (site.isOccupied()) {
       const auto vn = vacant_neighbours(r - start_r, c - start_c);
-      uint8_t alive = site.cell.updateState(site.substrates, *params, vn, site.meta);
+      uint8_t alive = site.cell.updateState(site.substrates, *params, vn);
       if (alive) {
         auto dose = protocol.getDose(step);
         if (dose) site.cell.irradiate(dose, params->cell_repair);
