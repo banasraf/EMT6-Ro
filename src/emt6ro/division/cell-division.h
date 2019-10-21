@@ -22,16 +22,19 @@ template <typename R>
 __host__ __device__ Cell divideCell(Cell &cell, const Parameters &params, R &rand) {
   cell.phase = Cell::CyclePhase::G1;
   cell.proliferation_time = 0;
-  return createCell(params, rand);
+  auto new_cell = createCell(params, rand);
+  new_cell.irradiation = cell.irradiation;
+  new_cell.calcDelayTime(params.cell_repair);
+  return new_cell;
 }
 
-__host__ __device__ static inline Coords mapToDiagNeighbour(uint32_t r, uint32_t c, uint8_t num) {
+__host__ __device__ static inline Coords mapToDiagNeighbour(int32_t r, int32_t c, uint8_t num) {
   const int8_t vert = (num & 1U) * 2 - 1;
   const int8_t hor = ((num & 2U) >> 1U) * 2 - 1;
   return {r + vert, c + hor};
 }
 
-__host__ __device__ static inline Coords mapToOrthoNeighbour(uint32_t r, uint32_t c, uint32_t num) {
+__host__ __device__ static inline Coords mapToOrthoNeighbour(int32_t r, int32_t c, uint8_t num) {
   const bool which = num & 1U;
   const int8_t diff = ((num & 2U) >> 1U) * 2 - 1;
   return which ? Coords{r + diff, c} : Coords{r, c + diff};

@@ -1,4 +1,6 @@
 #include "emt6ro/cell/cell.h"
+#include <cmath>
+#include <cuda_runtime_api.h>
 
 namespace emt6ro {
 
@@ -17,8 +19,9 @@ __host__ __device__ void Cell::metabolise(Substrates &site_substrates,
 }
 
 __host__ __device__ bool Cell::progressClock(float time_step) {
-  if (mode == MetabolicMode::AEROBIC_PROLIFERATION ||
-      mode == MetabolicMode::ANAEROBIC_PROLIFERATION) {
+  if ((mode == MetabolicMode::AEROBIC_PROLIFERATION ||
+      mode == MetabolicMode::ANAEROBIC_PROLIFERATION) &&
+      time_in_repair == 0) {
     proliferation_time += time_step / 3600;
     CyclePhase current = phase;
     phase = progressPhase(current,
@@ -82,6 +85,16 @@ __host__ __device__ bool Cell::updateState(const Substrates &levels, const Param
     meta |= (uint8_t)mode << 2U;
   }
   return r;
+}
+
+__host__ __device__ void Cell::irradiate(float dose, const Parameters::CellRepair &params) {
+  irradiation = irradiation / (1 + time_in_repair / params.repair_half_time) + dose;
+  calcDelayTime(params);
+}
+
+void Cell::calcDelayTime(const Parameters::CellRepair &params) {
+  using std::exp;
+  repair_delay_time = params.delay_time.coeff * exp(params.delay_time.exp_coeff * irradiation);
 }
 
 }  // namespace emt6ro

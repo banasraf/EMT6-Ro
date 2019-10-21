@@ -5,6 +5,7 @@
 
 #include <cuda_runtime.h>
 #include <cstdint>
+#include <cmath>
 #include "emt6ro/common/substrates.h"
 #include "emt6ro/parameters/parameters.h"
 
@@ -74,6 +75,31 @@ struct Cell {
    */
   __host__ __device__ bool updateState(const Substrates &levels, const Parameters &params,
                                        uint8_t vacant_neighbours, uint8_t &meta);
+
+  __host__ __device__ void calcDelayTime(const Parameters::CellRepair &params);
+
+  __host__ __device__ void irradiate(float dose, const Parameters::CellRepair &params);
+
+  template <typename R>
+  __host__ __device__ bool tryRepair(const Parameters::CellRepair &params, bool cycle_changed,
+                                     float time_step, R &rand) {
+    using std::exp;
+    if (time_in_repair > 0 || (irradiation > 0 && cycle_changed)) {
+      time_in_repair += time_step / 3600.f;
+      if (time_in_repair >= repair_delay_time) {
+        float death_prob =
+            1 - params.survival_prob.coeff * exp(params.survival_prob.exp_coeff * irradiation);
+        if (rand.uniform() < death_prob) {
+          return false;
+        } else {
+          irradiation = 0.f;
+          time_in_repair = 0.f;
+          repair_delay_time = 0.f;
+        }
+      }
+    }
+    return true;
+  }
 
  private:
   __host__ __device__ bool enterG1SStopping(float time_step, uint8_t vacant_neighbours);

@@ -5,6 +5,7 @@ add_subdirectory(common)
 add_subdirectory(diffusion)
 add_subdirectory(division)
 add_subdirectory(simulation)
+add_subdirectory(state)
 
 add_sources(EMT6RO_SOURCES)
 add_test_sources(EMT6RO_TESTS_SOURCES)
@@ -16,4 +17,4 @@ target_link_libraries(emt6ro PRIVATE nlohmann_json::nlohmann_json)
 target_include_directories(emt6ro PUBLIC
         $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/src>
         $<INSTALL_INTERFACE:include/emt6ro>)
-set_property(TARGET emt6ro PROPERTY INTERPROCEDURAL_OPTIMIZATIO TRUE)
+set_property(TARGET emt6ro PROPERTY INTERPROCEDURAL_OPTIMIZATION TRUE)

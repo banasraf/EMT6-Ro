@@ -5,19 +5,12 @@
 #include "emt6ro/common/device-buffer.h"
 #include "emt6ro/common/grid.h"
 #include "emt6ro/site/site.h"
+#include "emt6ro/common/protocol.h"
 
 namespace emt6ro {
 
 class Simulation {
  public:
-
-  struct DiffusionData {
-    device::buffer<float> cho;
-    device::buffer<float> ox;
-    device::buffer<float> gi;
-
-    explicit DiffusionData(size_t size): cho(size), ox(size), gi(size) {}
-  };
 
   Simulation(Dims dims, uint32_t batch_size, const Parameters &parameters,
              const device::buffer<uint32_t> &seeds)
@@ -29,23 +22,25 @@ class Simulation {
   , lattices(batch_size)
   , diffusion_tmp_data(batch_size * dims.vol())
   , vacant_neighbours(batch_size * dims.vol())
+  , rois(batch_size)
+  , protocols(batch_size)
   , rand_state(batch_size * CuBlockDimX * CuBlockDimY, seeds.data()) {
     cudaMemcpy(d_params.get(), &params, sizeof(Parameters), cudaMemcpyHostToDevice);
   }
 
   static Simulation FromSingleHost(const GridView<Site> &lattice, uint32_t batch,
-                                   const Parameters &params, uint32_t seed);
+                                   const Parameters &params, const Protocol &protocol,
+                                   uint32_t seed);
 
   void step();
-
-
-  void calculateVacantNeighbours();
 
   void diffuse();
 
   void simulateCells();
 
   void cellDivision();
+
+  void updateROIs();
 
   static const uint32_t CuBlockDimX = 32;
   static const uint32_t CuBlockDimY = 32;
@@ -56,9 +51,12 @@ class Simulation {
   device::unique_ptr<Parameters> d_params;
   device::buffer<Site> data;
   device::buffer<GridView<Site>> lattices;
-  DiffusionData diffusion_tmp_data;
+  device::buffer<Substrates> diffusion_tmp_data;
   device::buffer<uint8_t> vacant_neighbours;
+  device::buffer<ROI> rois;
+  device::buffer<Protocol> protocols;
   CuRandEngineState rand_state;
+  uint32_t step_ = 0;
 };
 
 }
