@@ -101,13 +101,13 @@ Simulation::Simulation(Dims dims, uint32_t batch_size, const Parameters &paramet
     , vacant_neighbours(batch_size * dims.vol())
     , rois(batch_size)
     , protocols(batch_size)
-    , seeds(batch_size * CuBlockDimX * CuBlockDimY)
-    , rand_state(batch_size * CuBlockDimX * CuBlockDimY, seeds.data())
+    , rand_state(batch_size * CuBlockDimX * CuBlockDimY)
     , results(batch_size) {
   std::vector<uint32_t> h_seeds(batch_size * CuBlockDimX * CuBlockDimY);
   std::mt19937 rand{seed};
   std::generate(h_seeds.begin(), h_seeds.end(), rand);
-  seeds.copyHost(h_seeds.data(), seeds.size());
+  auto seeds = device::buffer<uint32_t>::fromHost(h_seeds.data(), h_seeds.size());
+  rand_state.init(seeds.data());
   cudaMemcpy(d_params.get(), &params, sizeof(Parameters), cudaMemcpyHostToDevice);
   populateLattices();
 }

@@ -45,7 +45,6 @@ class Simulation {
   device::buffer<uint8_t> vacant_neighbours;
   device::buffer<ROI> rois;
   device::buffer<Protocol> protocols;
-  device::buffer<uint32_t> seeds;
   CuRandEngineState rand_state;
   device::buffer<uint32_t> results;
   uint32_t step_ = 0;

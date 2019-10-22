@@ -8,7 +8,7 @@
 #include "emt6ro/state/state.h"
 
 const uint32_t DIM = 53;
-const uint32_t BATCH_SIZE = 100;
+const uint32_t BATCH_SIZE = 10;
 
 using emt6ro::Site;
 using emt6ro::GridView;
@@ -27,22 +27,25 @@ static void experiment() {
   auto state = emt6ro::loadFromFile("../data/test_tumor.txt", params);
   std::vector<float> protocol_data_h(5 * 24 * 2);
   protocol_data_h[0] = 5;  // 5 Gy on the beginning
-  protocol_data_h[42 * HOUR_STEPS / PROTOCOL_RES] = 2.5;  // 2.5 Gy - second day, 6 PM
-  protocol_data_h[66 * HOUR_STEPS / PROTOCOL_RES] = 2.5;  // 2.5 Gy - third day, 6 PM
+  //protocol_data_h[42 * HOUR_STEPS / PROTOCOL_RES] = 2.5;  // 2.5 Gy - second day, 6 PM
+  //protocol_data_h[66 * HOUR_STEPS / PROTOCOL_RES] = 2.5;  // 2.5 Gy - third day, 6 PM
   auto protocol_data =
       buffer<float>::fromHost(protocol_data_h.data(), 5 * 24 * HOUR_STEPS / PROTOCOL_RES);
   Protocol protocol{PROTOCOL_RES, SIM_LENGTH / 2, protocol_data.data()};
   std::random_device rd{};
   auto simulation = Simulation({DIM, DIM}, BATCH_SIZE, params, rd());
   simulation.sendData(state, protocol, BATCH_SIZE);
-  simulation.run(24* 600);
-  simulation.getData(state.view().data, 0);
+  simulation.run(10 * 24 * 600);
+  for (int i = 0; i < BATCH_SIZE; ++i) {
+	std::cout << "New: " << i << std::endl;
+  simulation.getData(state.view().data, i);
   auto view = state.view();
   for (uint32_t r = 1; r < DIM - 1; ++r) {
     for (uint32_t c = 1; c < DIM - 1; ++c) {
       if (view(r, c).isOccupied()) std::cout << "● "; else std::cout << "· ";
     }
     std::cout << std::endl;
+  }
   }
   std::vector<uint32_t> results(BATCH_SIZE);
   simulation.getResults(results.data());

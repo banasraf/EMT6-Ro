@@ -14,6 +14,10 @@ class CuRandEngineState {
  public:
   CuRandEngineState(size_t size, const uint32_t *seeds);
 
+  explicit CuRandEngineState(size_t size);
+
+  void init(const uint32_t *seeds);
+
   inline const curandState_t *states() const {
     return state_.data();
   }

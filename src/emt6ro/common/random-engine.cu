@@ -9,12 +9,22 @@ __global__ void initializeState(curandState_t *state, const uint32_t *seeds, siz
   curand_init(seeds[i], 0, 0, &state[i]);
 }
 
+void init(curandState_t *state_data, const uint32_t *seeds, size_t size) {
+  size_t block_size = (size > 1024) ? 1024 : size;
+  size_t grid_size = (size + block_size - 1) / block_size;
+  detail::initializeState<<<grid_size, block_size>>>(state_data, seeds, size);
+}
+
 }  // namespace detail
 
 CuRandEngineState::CuRandEngineState(size_t size, const uint32_t* seeds) : state_(size) {
-  size_t block_size = (size > 1024) ? 1024 : size;
-  size_t grid_size = (size + block_size - 1) / block_size;
-  detail::initializeState<<<grid_size, block_size>>>(state_.data(), seeds, size);
+  init(seeds);
+}
+
+CuRandEngineState::CuRandEngineState(size_t size): state_(size) {}
+
+void CuRandEngineState::init(const uint32_t *seeds) {
+  detail::init(state_.data(), seeds, state_.size());
 }
 
 __device__ float CuRandEngine::uniform() {
