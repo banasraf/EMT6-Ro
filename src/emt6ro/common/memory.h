@@ -1,5 +1,5 @@
-#ifndef SRC_EMT6RO_COMMON_MEMORY_H_
-#define SRC_EMT6RO_COMMON_MEMORY_H_
+#ifndef EMT6RO_COMMON_MEMORY_H_
+#define EMT6RO_COMMON_MEMORY_H_
 
 #include <cuda_runtime_api.h>
 #include <memory>
@@ -28,4 +28,4 @@ unique_ptr<T> alloc_unique(size_t count = 1) {
 }  // namespace device
 }  // namespace emt6ro
 
-#endif  // SRC_EMT6RO_COMMON_MEMORY_H_
+#endif  // EMT6RO_COMMON_MEMORY_H_

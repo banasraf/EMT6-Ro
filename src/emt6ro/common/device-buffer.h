@@ -1,5 +1,5 @@
-#ifndef SRC_EMT6RO_COMMON_DEVICE_BUFFER_H_
-#define SRC_EMT6RO_COMMON_DEVICE_BUFFER_H_
+#ifndef EMT6RO_COMMON_DEVICE_BUFFER_H_
+#define EMT6RO_COMMON_DEVICE_BUFFER_H_
 
 #include <vector>
 #include <utility>
@@ -11,7 +11,7 @@ namespace device {
 
 template <typename T>
 class buffer {
-  static_assert(std::is_pod<T>::value, "");
+  static_assert(std::is_pod<T>::value, "device::buffer can hold only POD types");
   device::unique_ptr<T> data_;
   size_t size_;
 
@@ -68,9 +68,13 @@ class buffer {
     cudaMemcpy(result.data(), data, sizeof(T) * count, cudaMemcpyHostToDevice);
     return result;
   }
+
+  void copyHost(const T *data, size_t count, size_t dest_offset = 0) {
+    cudaMemcpy(data_.get() + dest_offset, data, sizeof(T) * count, cudaMemcpyHostToDevice);
+  }
 };
 
 }  // namespace device
 }  // namespace emt6ro
 
-#endif  // SRC_EMT6RO_COMMON_DEVICE_BUFFER_H_
+#endif  // EMT6RO_COMMON_DEVICE_BUFFER_H_

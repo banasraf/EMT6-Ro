@@ -1,5 +1,5 @@
-#ifndef SRC_EMT6RO_SITE_SITE_H_
-#define SRC_EMT6RO_SITE_SITE_H_
+#ifndef EMT6RO_SITE_SITE_H_
+#define EMT6RO_SITE_SITE_H_
 
 #include <cstdint>
 #include "emt6ro/cell/cell.h"
@@ -9,7 +9,7 @@ namespace emt6ro {
 
 /// @brief Representation of a site on a simulation lattice
 struct Site {
-  enum class SiteState: uint8_t {
+  enum class State : uint8_t {
     VACANT = 0,  //!< no living cancerous cells on a site
     OCCUPIED = 1,  //!< site occupied by living cancerous cells
     MOCKED = 2  //!<  dummy state for border sites
@@ -17,8 +17,16 @@ struct Site {
 
   Substrates substrates;  //!< site's substrates levels
   Cell cell;
-  SiteState state;
+  State state;
+
+  __host__ __device__ inline uint8_t isOccupied() const {
+    return state == State::OCCUPIED;
+  }
+
+  __host__ __device__ inline uint8_t isVacant() const {
+    return state == State::VACANT;
+  }
 };
 
 }  // namespace emt6ro
-#endif  // SRC_EMT6RO_SITE_SITE_H_
+#endif  // EMT6RO_SITE_SITE_H_

@@ -1,4 +1,6 @@
 #include "emt6ro/cell/cell.h"
+#include <cuda_runtime_api.h>
+#include <cmath>
 
 namespace emt6ro {
 
@@ -17,8 +19,9 @@ __host__ __device__ void Cell::metabolise(Substrates &site_substrates,
 }
 
 __host__ __device__ bool Cell::progressClock(float time_step) {
-  if (mode == MetabolicMode::AEROBIC_PROLIFERATION ||
-      mode == MetabolicMode::ANAEROBIC_PROLIFERATION) {
+  if ((mode == MetabolicMode::AEROBIC_PROLIFERATION ||
+      mode == MetabolicMode::ANAEROBIC_PROLIFERATION) &&
+      time_in_repair == 0) {
     proliferation_time += time_step / 3600;
     CyclePhase current = phase;
     phase = progressPhase(current,
@@ -62,18 +65,30 @@ __host__ __device__ bool Cell::tryQuiescence(const Substrates &levels, const Par
 }
 
 __host__ __device__ bool Cell::enterG1SStopping(float time_step, uint8_t vacant_neighbours) {
-  return proliferation_time > (cycle_times.g1 - 2*time_step) &&
-         phase == CyclePhase::G1 && vacant_neighbours == 0;
+  return proliferation_time > (cycle_times.g1 - 2*time_step / 3600.f) &&
+         phase == CyclePhase::G1 && vacant_neighbours <= 1;
 }
 
 __host__ __device__ bool Cell::updateState(const Substrates &levels, const Parameters &params,
                                            uint8_t vacant_neighbors) {
+  if (proliferation_time >= cycle_times.d - params.time_step / 3600.f)
+    return false;
   if (!enterG1SStopping(params.time_step, vacant_neighbors)) {
     if (tryProliferating(levels, params)) {
       return true;
     }
   }
   return tryQuiescence(levels, params);
+}
+
+__host__ __device__ void Cell::irradiate(float dose, const Parameters::CellRepair &params) {
+  irradiation = irradiation / (1 + time_in_repair / params.repair_half_time) + dose;
+  calcDelayTime(params);
+}
+
+void Cell::calcDelayTime(const Parameters::CellRepair &params) {
+  using std::exp;
+  repair_delay_time = params.delay_time.coeff * exp(params.delay_time.exp_coeff * irradiation);
 }
 
 }  // namespace emt6ro
