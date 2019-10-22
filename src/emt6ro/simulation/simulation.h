@@ -13,7 +13,31 @@ class Simulation {
  public:
   Simulation(Dims dims, uint32_t batch_size, const Parameters &parameters, uint32_t seed);
 
-  void sendData(const HostGrid<Site> &grid, const Protocol &Protocol, uint32_t multi = 1);
+  /**
+   * Send simulation data to GPU.
+   * @param grid - tumor data
+   * @param protocol - view over **device** data with irradiation protocol
+   * @param multi - number of data slots to fill with the given simulation
+   */
+  void sendData(const HostGrid<Site> &grid, const Protocol &protocol, uint32_t multi = 1);
+
+  /**
+   * Run simulation.
+   * The whole batch should be filled (with `sendData`) before executing this function.
+   * @param nsteps - number of steps
+   */
+  void run(uint32_t nsteps);
+
+  /**
+   * Get tumors's living cells count.
+   * @param h_data - output buffer
+   */
+  void getResults(uint32_t *h_data);
+
+  void getData(Site *h_data, uint32_t sample);
+
+ private:
+  void populateLattices();
 
   void step();
 
@@ -24,15 +48,6 @@ class Simulation {
   void cellDivision();
 
   void updateROIs();
-
-  void run(uint32_t nsteps);
-
-  void getResults(uint32_t *h_data);
-
-  void getData(Site *h_data, uint32_t sample);
-
- private:
-  void populateLattices();
 
   size_t batch_size;
   Dims dims;

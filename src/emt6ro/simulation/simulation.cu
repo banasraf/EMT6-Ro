@@ -164,6 +164,7 @@ void Simulation::getResults(uint32_t *h_data) {
   cudaMemcpy(h_data, results.data(), batch_size * sizeof(uint32_t), cudaMemcpyDeviceToHost);
 }
 void Simulation::run(uint32_t nsteps) {
+  assert(filled_samples == batch_size);
   for (uint32_t s = 0; s < nsteps; ++s) {
     step();
   }
