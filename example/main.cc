@@ -12,7 +12,7 @@
  */
 
 const uint32_t DIM = 53;
-const uint32_t BATCH_SIZE = 500;
+const uint32_t BATCH_SIZE = 100;
 
 using emt6ro::Site;
 using emt6ro::GridView;
@@ -28,14 +28,14 @@ static void experiment() {
   auto state = emt6ro::loadFromFile("../data/test_tumor.txt", params);
   std::vector<float> protocol_data_h(5 * 24 * 2);
   protocol_data_h[0] = 5;
-  protocol_data_h[2 * 24 * 2] = 2.5;
-  protocol_data_h[2 * 24 * 2 + 12 * 2] = 2.5;
+  protocol_data_h[42 * 2] = 2.5;
+  protocol_data_h[66 * 2] = 2.5;
   auto protocol_data = buffer<float>::fromHost(protocol_data_h.data(), 5 * 24 * 2);
   Protocol protocol{300, 5 * 24 * 2 * 300, protocol_data.data()};
   std::random_device rd{};
   auto simulation = emt6ro::Simulation::FromSingleHost(state.view(), BATCH_SIZE, params, protocol, rd());
 //  simulation.cellDivision();
-  for (uint32_t s = 0; s < 10 * 24 * 600; ++s)
+  for (uint32_t s = 0; s <  24 * 600; ++s)
     simulation.step();
   auto data2 = simulation.data.toHost();
   GridView<Site> lattice2{data2.get() + Dims{DIM, DIM}.vol() * 5, Dims{DIM, DIM}};
