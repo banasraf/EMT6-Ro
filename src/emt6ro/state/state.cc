@@ -10,7 +10,6 @@ HostGrid<Site> loadFromFile(const std::string& filename, const Parameters &param
   assert(file.good());
   int32_t h, w;
   file >> h >> w;
-  std::cout << "h: " << h << " w: " << w << std::endl;
   HostGrid<Site> grid({h + 2, w + 2});
   auto view = grid.view();
   for (int32_t r = 0; r < h + 2; ++r) {

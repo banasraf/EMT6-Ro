@@ -11,25 +11,9 @@ namespace emt6ro {
 
 class Simulation {
  public:
-  Simulation(Dims dims, uint32_t batch_size, const Parameters &parameters,
-             const device::buffer<uint32_t> &seeds)
-  : batch_size(batch_size)
-  , dims(dims)
-  , params(parameters)
-  , d_params(device::alloc_unique<Parameters>(1))
-  , data(batch_size * dims.vol())
-  , lattices(batch_size)
-  , diffusion_tmp_data(batch_size * dims.vol())
-  , vacant_neighbours(batch_size * dims.vol())
-  , rois(batch_size)
-  , protocols(batch_size)
-  , rand_state(batch_size * CuBlockDimX * CuBlockDimY, seeds.data()) {
-    cudaMemcpy(d_params.get(), &params, sizeof(Parameters), cudaMemcpyHostToDevice);
-  }
+  Simulation(Dims dims, uint32_t batch_size, const Parameters &parameters, uint32_t seed);
 
-  static Simulation FromSingleHost(const GridView<Site> &lattice, uint32_t batch,
-                                   const Parameters &params, const Protocol &protocol,
-                                   uint32_t seed);
+  void sendData(const HostGrid<Site> &grid, const Protocol &Protocol, uint32_t multi = 1);
 
   void step();
 
@@ -41,17 +25,29 @@ class Simulation {
 
   void updateROIs();
 
+  void run(uint32_t nsteps);
+
+  void getResults(uint32_t *h_data);
+
+  void getData(Site *h_data, uint32_t sample);
+
+ private:
+  void populateLattices();
+
   size_t batch_size;
   Dims dims;
   Parameters params;
   device::unique_ptr<Parameters> d_params;
   device::buffer<Site> data;
+  uint32_t filled_samples;
   device::buffer<GridView<Site>> lattices;
   device::buffer<Substrates> diffusion_tmp_data;
   device::buffer<uint8_t> vacant_neighbours;
   device::buffer<ROI> rois;
   device::buffer<Protocol> protocols;
+  device::buffer<uint32_t> seeds;
   CuRandEngineState rand_state;
+  device::buffer<uint32_t> results;
   uint32_t step_ = 0;
 };
 

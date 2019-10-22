@@ -1,45 +1,25 @@
+#include <emt6ro/common/grid.h>
 #include <algorithm>
 #include <cassert>
 #include <iostream>
 #include <random>
 #include <vector>
+#include "emt6ro/common/debug.h"
 #include "emt6ro/diffusion/grid-diffusion.h"
 #include "emt6ro/division/cell-division.h"
 #include "emt6ro/simulation/simulation.h"
-#include "emt6ro/common/debug.h"
+#include "emt6ro/statistics/statistics.h"
 
 namespace emt6ro {
 
 namespace detail {
 
-__global__ void populateGridViewsKernel(GridView<Site> *views, uint32_t size,
+__global__ void populateGridViewsKernel(GridView<Site> *views, uint32_t batch_size,
                                         Dims dims, Site *origin) {
   auto idx = blockDim.x * blockIdx.x + threadIdx.x;
-  if (idx < size) {
+  if (idx < batch_size) {
     views[idx].data = origin + dims.vol() * idx;
     views[idx].dims = dims;
-  }
-}
-
-void populateGridViews(GridView<Site> *views, uint32_t size,
-                       Dims dims, Site *origin) {
-  auto blocks = (size + 1023) / 1024;
-  auto block_size = (size > 1024) ? 1024 : size;
-  populateGridViewsKernel<<<blocks, block_size>>>(views, size, dims, origin);
-  KERNEL_DEBUG("populate")
-}
-
-void copyLattice(device::buffer<Site> &data, uint32_t batch, const GridView<Site> &h_lattice) {
-  assert(data.size() >= batch * h_lattice.dims.vol());
-  for (uint32_t i = 0; i < batch; ++i) {
-    data.copyHost(h_lattice.data, h_lattice.dims.vol(), i * h_lattice.dims.vol());
-  }
-}
-
-void copyProtocols(device::buffer<Protocol> &protocols, const Protocol &protocol, uint32_t batch) {
-  for (uint32_t i = 0; i < batch; ++i) {
-    protocols.copyHost(&protocol, 1, i);
-    KERNEL_DEBUG("copy protocols 2")
   }
 }
 
@@ -101,19 +81,48 @@ __global__ void cellDivisionKernel(GridView<Site> *lattices, Parameters *params,
 
 }  // namespace detail
 
-Simulation Simulation::FromSingleHost(const GridView<Site>& lattice, uint32_t batch,
-                                      const Parameters& params, const Protocol &protocol,
-                                      uint32_t seed) {
-  std::vector<uint32_t> h_seeds(batch * CuBlockDimX * CuBlockDimY);
+void Simulation::populateLattices() {
+  auto blocks = (batch_size + 1023) / 1024;
+  auto block_size = (batch_size > 1024) ? 1024 : batch_size;
+  detail::populateGridViewsKernel<<<blocks, block_size>>>
+    (lattices.data(), batch_size, dims, data.data());
+  KERNEL_DEBUG("populate")
+}
+
+Simulation::Simulation(Dims dims, uint32_t batch_size, const Parameters &parameters, uint32_t seed)
+    : batch_size(batch_size)
+    , dims(dims)
+    , params(parameters)
+    , d_params(device::alloc_unique<Parameters>(1))
+    , data(batch_size * dims.vol())
+    , filled_samples(0)
+    , lattices(batch_size)
+    , diffusion_tmp_data(batch_size * dims.vol())
+    , vacant_neighbours(batch_size * dims.vol())
+    , rois(batch_size)
+    , protocols(batch_size)
+    , seeds(batch_size * CuBlockDimX * CuBlockDimY)
+    , rand_state(batch_size * CuBlockDimX * CuBlockDimY, seeds.data())
+    , results(batch_size) {
+  std::vector<uint32_t> h_seeds(batch_size * CuBlockDimX * CuBlockDimY);
   std::mt19937 rand{seed};
   std::generate(h_seeds.begin(), h_seeds.end(), rand);
-  auto d_seeds = device::buffer<uint32_t>::fromHost(h_seeds.data(), h_seeds.size());
-  Simulation simulation(lattice.dims, batch, params, d_seeds);
-  detail::populateGridViews(simulation.lattices.data(), batch,
-                            lattice.dims, simulation.data.data());
-  detail::copyProtocols(simulation.protocols, protocol, batch);
-  detail::copyLattice(simulation.data, batch, lattice);
-  return simulation;
+  seeds.copyHost(h_seeds.data(), seeds.size());
+  cudaMemcpy(d_params.get(), &params, sizeof(Parameters), cudaMemcpyHostToDevice);
+  populateLattices();
+}
+
+void Simulation::sendData(const HostGrid<Site> &grid, const Protocol &protocol, uint32_t multi) {
+  assert(filled_samples + multi <= batch_size);
+  assert(grid.view().dims == dims);
+  for (uint32_t i = filled_samples; i < filled_samples + multi; ++i) {
+    auto view = grid.view();
+    data.copyHost(view.data, dims.vol(), dims.vol() * i);
+    KERNEL_DEBUG("data")
+    protocols.copyHost(&protocol, 1, i);
+    KERNEL_DEBUG("protocol")
+  }
+  filled_samples += multi;
 }
 
 void Simulation::step() {
@@ -148,6 +157,22 @@ void Simulation::cellDivision() {
 }
 void Simulation::updateROIs() {
   findTumorsBoundaries(lattices.data(), rois.data(), batch_size);
+}
+
+void Simulation::getResults(uint32_t *h_data) {
+  countLiving(results.data(), data.data(), dims, batch_size);
+  cudaMemcpy(h_data, results.data(), batch_size * sizeof(uint32_t), cudaMemcpyDeviceToHost);
+}
+void Simulation::run(uint32_t nsteps) {
+  for (uint32_t s = 0; s < nsteps; ++s) {
+    step();
+  }
+}
+
+void Simulation::getData(Site *h_data, uint32_t sample) {
+  assert(sample < batch_size);
+  cudaMemcpy(h_data, data.data() + sample * dims.vol(),
+      dims.vol() * sizeof(Site), cudaMemcpyDeviceToHost);
 }
 
 }  // namespace emt6ro

@@ -13,6 +13,10 @@ struct Dims {
   inline __host__ __device__ int32_t vol() const {
     return height * width;
   }
+
+  inline __host__ __device__ bool operator==(Dims rhs) {
+    return height == rhs.height && width == rhs.width;
+  }
 };
 
 struct Coords {
@@ -56,7 +60,7 @@ class HostGrid {
  public:
   explicit HostGrid(Dims dims): data_(new T[dims.vol()]), view_{data_.get(), dims} {}
 
-  GridView<T> view() {
+  GridView<T> view() const {
     return view_;
   }
 };
