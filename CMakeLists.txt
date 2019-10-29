@@ -13,9 +13,11 @@ include(cmake/CollectSources.cmake)
 
 set(EMT6RO_BUILD_TESTS TRUE)
 set(EMT6RO_BUILD_BENCH TRUE)
+set(EMT6RO_BUILD_EXAMPLES TRUE)
 if (${EMT6RO_BUILD_ONLY_LIB})
     set(EMT6RO_BUILD_TESTS FALSE)
     set(EMT6RO_BUILD_BENCH FALSE)
+    set(EMT6RO_BUILD_EXAMPLES FALSE)
 endif()
 
 # BUILD GOOGLE TEST
@@ -37,5 +39,6 @@ set(JSON_BuildTests OFF CACHE INTERNAL "")
 add_subdirectory(third-party/json)
 
 add_subdirectory(src)
-add_subdirectory(example)
-
+if (${EMT6RO_BUILD_EXAMPLES})
+    add_subdirectory(example)
+endif()
