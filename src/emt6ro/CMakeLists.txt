@@ -14,7 +14,7 @@ add_headers(EMT6RO_HEADERS)
 add_bench_sources(EMT6RO_BENCH_SOURCES)
 
 add_library(emt6ro STATIC ${EMT6RO_SOURCES} ${EMT6RO_HEADERS})
-target_link_libraries(emt6ro PRIVATE nlohmann_json::nlohmann_json)
+target_include_directories(emt6ro PRIVATE ${PROJECT_SOURCE_DIR}/third-party/json)
 target_include_directories(emt6ro PUBLIC ${PROJECT_SOURCE_DIR}/src)
 target_include_directories(emt6ro INTERFACE ${CMAKE_CUDA_TOOLKIT_INCLUDE_DIRECTORIES})
 set_property(TARGET emt6ro PROPERTY INTERPROCEDURAL_OPTIMIZATION $<$<CONFIG:Release>:...>)
