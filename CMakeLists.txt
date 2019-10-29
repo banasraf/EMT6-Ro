@@ -11,18 +11,34 @@ add_custom_target(lint
 
 include(cmake/CollectSources.cmake)
 
+set(EMT6RO_BUILD_TESTS TRUE)
+set(EMT6RO_BUILD_BENCH TRUE)
+set(EMT6RO_BUILD_EXAMPLES TRUE)
+if (${EMT6RO_BUILD_ONLY_LIB})
+    set(EMT6RO_BUILD_TESTS FALSE)
+    set(EMT6RO_BUILD_BENCH FALSE)
+    set(EMT6RO_BUILD_EXAMPLES FALSE)
+endif()
+
 # BUILD GOOGLE TEST
-set(BUILD_GMOCK OFF CACHE INTERNAL "")
-add_subdirectory(third-party/googletest)
+if (${EMT6RO_BUILD_TESTS})
+    set(BUILD_GMOCK OFF CACHE INTERNAL "")
+    add_subdirectory(third-party/googletest)
+endif()
+
 
 # BUILD GOOGLE BENCHMARK
-set(BENCHMARK_ENABLE_TESTING OFF CACHE INTERNAL "")
-add_subdirectory(third-party/benchmark)
+if (${EMT6RO_BUILD_BENCH})
+    set(BENCHMARK_ENABLE_TESTING OFF CACHE INTERNAL "")
+    add_subdirectory(third-party/benchmark)
+endif()
+
 
 # BUILD NLOHMANN JSON
 set(JSON_BuildTests OFF CACHE INTERNAL "")
 add_subdirectory(third-party/json)
 
 add_subdirectory(src)
-add_subdirectory(example)
-
+if (${EMT6RO_BUILD_EXAMPLES})
+    add_subdirectory(example)
+endif()
