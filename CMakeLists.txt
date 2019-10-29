@@ -33,11 +33,6 @@ if (${EMT6RO_BUILD_BENCH})
     add_subdirectory(third-party/benchmark)
 endif()
 
-
-# BUILD NLOHMANN JSON
-set(JSON_BuildTests OFF CACHE INTERNAL "")
-add_subdirectory(third-party/json)
-
 add_subdirectory(src)
 if (${EMT6RO_BUILD_EXAMPLES})
     add_subdirectory(example)
