@@ -30,11 +30,24 @@ class Simulation {
 
   /**
    * Get tumors's living cells count.
-   * @param h_data - output buffer
+   * @param h_data - output host buffer
    */
   void getResults(uint32_t *h_data);
 
+  /**
+   * Get lattice
+   * @param h_data - output host buffer
+   * @param sample - sample index
+   */
   void getData(Site *h_data, uint32_t sample);
+
+  void sync();
+
+  cudaStream_t stream() {
+    return stream_;
+  }
+
+  void reset();
 
  private:
   void populateLattices();
@@ -54,7 +67,7 @@ class Simulation {
   Parameters params;
   device::unique_ptr<Parameters> d_params;
   device::buffer<Site> data;
-  uint32_t filled_samples;
+  uint32_t filled_samples = 0;
   device::buffer<GridView<Site>> lattices;
   device::buffer<Substrates> diffusion_tmp_data;
   device::buffer<uint8_t> vacant_neighbours;
@@ -63,6 +76,7 @@ class Simulation {
   CuRandEngineState rand_state;
   device::buffer<uint32_t> results;
   uint32_t step_ = 0;
+  cudaStream_t stream_;
 };
 
 }  // namespace emt6ro

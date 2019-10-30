@@ -25,15 +25,16 @@ __global__ void countLivingKernel(uint32_t *results, Site *data, uint32_t vol) {
   if (threadIdx.x == 0) results[blockIdx.x] = parts[0];
 }
 
-}
+}  // namespace detail
 
-void countLiving(uint32_t *results, Site *data, Dims dims, uint32_t batch_size) {
+void countLiving(uint32_t *results, Site *data, Dims dims, uint32_t batch_size,
+                 cudaStream_t stream) {
   auto vol = dims.vol();
   auto block_size = (vol < 1024) ? vol : 1024;
   detail::countLivingKernel
-    <<<batch_size, block_size, block_size * sizeof(uint32_t)>>>
+    <<<batch_size, block_size, block_size * sizeof(uint32_t), stream>>>
     (results, data, vol);
   KERNEL_DEBUG("count living")
 }
 
-}
+}  // namespace emt6ro

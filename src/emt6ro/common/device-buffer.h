@@ -20,10 +20,25 @@ class buffer {
 
   explicit buffer(size_t count): data_{alloc_unique<T>(count)}, size_(count) {}
 
-  buffer(const T *dev_data, size_t count): data_(alloc_unique<T>(count)), size_(count) {
-    cudaMemcpy(data_.get(), dev_data, sizeof(T) * count, cudaMemcpyDeviceToDevice);
+  /**
+   * Allocate a new buffer and copy device data to it.
+   * The copy is done asynchronously if the stream is provided.
+   * @param dev_data - pointer to device data
+   * @param count - number of elements to allocate
+   * @param stream - cuda stream which the copy should be scheduled to
+   */
+  buffer(const T *dev_data, size_t count, cudaStream_t stream = nullptr)
+  : data_(alloc_unique<T>(count))
+  , size_(count) {
+    cudaMemcpyAsync(data_.get(), dev_data, sizeof(T) * count, cudaMemcpyDeviceToDevice, stream);
+    if (!stream)
+      cudaStreamSynchronize(stream);
   }
 
+  /**
+   * Allocate a new buffer and synchronously copy data from the `rhs` buffer.
+   * @param rhs
+   */
   buffer<T> &operator=(const buffer<T> &rhs) {
     size_ = rhs.size();
     data_ = alloc_unique<T>(size_);
@@ -57,20 +72,50 @@ class buffer {
     return size_;
   }
 
-  std::unique_ptr<T[]> toHost() {
+  /**
+   * Allocate a new host buffer and copy the data into it.
+   * The copy is done asynchronously if the stream is provided.
+   * @param stream - cuda stream which the copy should be scheduled to
+   * @return allocated host buffer
+   */
+  std::unique_ptr<T[]> toHost(cudaStream_t stream = nullptr) {
     std::unique_ptr<T[]> result(new T[size_]);
-    cudaMemcpy(result.get(), data_.get(), size_ * sizeof(T), cudaMemcpyDeviceToHost);
+    cudaMemcpyAsync(result.get(), data_.get(), size_ * sizeof(T), cudaMemcpyDeviceToHost, stream);
+    if (!stream)
+      cudaStreamSynchronize(stream);
     return result;
   }
 
-  static buffer<T> fromHost(const T *data, size_t count) {
+  /**
+   * Allocate a new buffer and copy the host data into it.
+   * The copy is done asynchronously if the stream is provided.
+   * @param data - host data to be copied
+   * @param count - number of elements
+   * @param stream - cuda stream which the copy should be scheduled to
+   * @return new device buffer
+   */
+  static buffer<T> fromHost(const T *data, size_t count, cudaStream_t stream = nullptr) {
     buffer<T> result(count);
-    cudaMemcpy(result.data(), data, sizeof(T) * count, cudaMemcpyHostToDevice);
+    cudaMemcpyAsync(result.data(), data, sizeof(T) * count, cudaMemcpyHostToDevice, stream);
+    if (!stream)
+      cudaStreamSynchronize(stream);
     return result;
   }
 
-  void copyHost(const T *data, size_t count, size_t dest_offset = 0) {
-    cudaMemcpy(data_.get() + dest_offset, data, sizeof(T) * count, cudaMemcpyHostToDevice);
+  /**
+   * Copy host data into the buffer.
+   * The copy is done asynchronously if the stream is provided.
+   * @param data - host source data
+   * @param count - number of elements to copy
+   * @param dest_offset - copy destination offset
+   * @param stream - cuda stream which the copy should be scheduled to
+   */
+  void copyHost(const T *data, size_t count,
+                size_t dest_offset = 0, cudaStream_t stream = nullptr) {
+    cudaMemcpyAsync(data_.get() + dest_offset, data, sizeof(T) * count,
+                    cudaMemcpyHostToDevice, stream);
+    if (!stream)
+      cudaStreamSynchronize(stream);
   }
 };
 

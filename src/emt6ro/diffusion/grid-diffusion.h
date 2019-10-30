@@ -13,7 +13,8 @@ namespace emt6ro {
  * @param rois - output
  * @param batch_size
  */
-void findTumorsBoundaries(const GridView<Site> *lattices, ROI *rois, uint32_t batch_size);
+void findTumorsBoundaries(const GridView<Site> *lattices, ROI *rois, uint32_t batch_size,
+                          cudaStream_t stream = nullptr);
 
 /**
  * Diffusion of substrates on a given batch of tumor grids
@@ -29,7 +30,8 @@ void findTumorsBoundaries(const GridView<Site> *lattices, ROI *rois, uint32_t ba
  */
 void batchDiffuse(GridView<Site> *lattices, const ROI *rois, Substrates *temp_mem,
                    Dims max_dims, const Substrates &coeffs, const Substrates &ext_levels,
-                   uint32_t batch_size, float time_step, uint32_t steps);
+                   uint32_t batch_size, float time_step, uint32_t steps,
+                   cudaStream_t stream = nullptr);
 
 }  // namespace emt6ro
 
