@@ -9,6 +9,9 @@ add_compile_options($<$<COMPILE_LANGUAGE:CUDA>:-dc>)
 add_custom_target(lint
         COMMAND ${PROJECT_SOURCE_DIR}/tools/cpplint.py --root=${PROJECT_SOURCE_DIR}/src --recursive ${PROJECT_SOURCE_DIR}/src)
 
+add_custom_target(docs COMMAND mkdir -p docs
+                       COMMAND doxygen ${PROJECT_SOURCE_DIR}/doxygen/Doxyfile)
+
 include(cmake/CollectSources.cmake)
 
 set(EMT6RO_BUILD_TESTS TRUE)

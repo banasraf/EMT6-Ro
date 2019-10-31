@@ -16,7 +16,12 @@ class CuRandEngineState {
 
   explicit CuRandEngineState(size_t size);
 
-  void init(const uint32_t *seeds);
+  /**
+   * Initialize the random engine state.
+   * @param seeds - pointer to device data with random seeds
+   * @param stream - cuda stream
+   */
+  void init(const uint32_t *seeds, cudaStream_t stream = nullptr);
 
   inline const curandState_t *states() const {
     return state_.data();
