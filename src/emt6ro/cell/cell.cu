@@ -83,12 +83,17 @@ __host__ __device__ bool Cell::updateState(const Substrates &levels, const Param
 
 __host__ __device__ void Cell::irradiate(float dose, const Parameters::CellRepair &params) {
   irradiation = irradiation / (1 + time_in_repair / params.repair_half_time) + dose;
+  time_in_repair = 0;
   calcDelayTime(params);
 }
 
 void Cell::calcDelayTime(const Parameters::CellRepair &params) {
   using std::exp;
+#ifdef __CUDA_ARCH__
+  repair_delay_time = params.delay_time.coeff * expf(params.delay_time.exp_coeff * irradiation);
+#else
   repair_delay_time = params.delay_time.coeff * exp(params.delay_time.exp_coeff * irradiation);
+#endif
 }
 
 }  // namespace emt6ro

@@ -14,8 +14,8 @@ if (_DEBUG) { \
   cudaDeviceSynchronize(); \
   auto code = cudaPeekAtLastError();\
   if (code != cudaSuccess) { \
-    std::cout << "error in " << name << ": " << cudaGetErrorString(code) << std::endl; \
-    exit(-1); \
+    std::string err(cudaGetErrorString(code)); \
+    throw std::runtime_error("CUDA error: " + err + " in " name); \
   } \
 }
 

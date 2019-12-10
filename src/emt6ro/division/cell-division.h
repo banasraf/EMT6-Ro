@@ -24,7 +24,8 @@ __host__ __device__ Cell divideCell(Cell &cell, const Parameters &params, R &ran
   cell.proliferation_time = 0;
   auto new_cell = createCell(params, rand);
   new_cell.irradiation = cell.irradiation;
-  new_cell.calcDelayTime(params.cell_repair);
+  if (cell.irradiation > 0)
+    new_cell.calcDelayTime(params.cell_repair);
   return new_cell;
 }
 
