@@ -2,11 +2,8 @@
 #include <random>
 #include <chrono>
 #include "emt6ro/common/protocol.h"
-#include "emt6ro/diffusion/grid-diffusion.h"
-#include "emt6ro/division/cell-division.h"
 #include "emt6ro/simulation/simulation.h"
 #include "emt6ro/state/state.h"
-#include "emt6ro/common/debug.h"
 
 const uint32_t DIM = 53;
 const uint32_t BATCH_SIZE = 1000;
@@ -27,9 +24,9 @@ static void experiment() {
   auto params = Parameters::loadFromJSONFile("../data/default-parameters.json");
   auto state = emt6ro::loadFromFile("../data/test_tumor.txt", params);
   std::vector<float> protocol_data_h(5 * 24 * HOUR_STEPS / PROTOCOL_RES);  // 5 days protocol
-  protocol_data_h[0] = 5;  // 5 Gy on the beginning
+  protocol_data_h[0] = 1;  // 1 Gy on the beginning
   protocol_data_h[42 * HOUR_STEPS / PROTOCOL_RES] = 2.5;  // 2.5 Gy - second day, 6 PM
-  protocol_data_h[66 * HOUR_STEPS / PROTOCOL_RES] = 2.5;  // 2.5 Gy - third day, 6 PM
+  protocol_data_h[66 * HOUR_STEPS / PROTOCOL_RES] = 1.5;  // 1.5 Gy - third day, 6 PM
   auto protocol_data =
       buffer<float>::fromHost(protocol_data_h.data(), 5 * 24 * HOUR_STEPS / PROTOCOL_RES);
   Protocol protocol{PROTOCOL_RES, SIM_LENGTH / 2, protocol_data.data()};

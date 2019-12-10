@@ -29,7 +29,8 @@ HostGrid<Site> loadFromFile(const std::string& filename, const Parameters &param
           auto &cell = site.cell;
           file >> cell.time_in_repair;
           file >> cell.irradiation;
-          cell.calcDelayTime(parameters.cell_repair);
+          if (cell.irradiation > 0)
+            cell.calcDelayTime(parameters.cell_repair);
           file >> cell.proliferation_time;
           file >> cell.cycle_times.g1;
           file >> cell.cycle_times.s;

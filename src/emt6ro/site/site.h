@@ -26,6 +26,37 @@ struct Site {
   __host__ __device__ inline uint8_t isVacant() const {
     return state == State::VACANT;
   }
+
+  /**
+   *
+   * @tparam R - random engine type
+   * @param params - simulation parameters
+   * @param vacant_neighbours - number of vacant neighbouring sites
+   * @param dose - irradiation dose applied in the current step
+   * @param rand - random engine
+   * @return true if the cell is ready for division, false otherwise
+   */
+  template <typename R>
+  __host__ __device__ bool step(const Parameters &params, uint8_t vacant_neighbours, float dose,
+                                R &rand) {
+    if (isOccupied()) {
+      uint8_t alive = cell.updateState(substrates, params, vacant_neighbours);
+      if (alive) {
+        if (dose > 0) cell.irradiate(dose, params.cell_repair);
+        cell.metabolise(substrates, params.metabolism);
+        bool cycle_changed = cell.progressClock(params.time_step);
+        alive = cell.tryRepair(params.cell_repair, cycle_changed, params.time_step, rand);
+        if (alive) {
+          return cell.phase == Cell::CyclePhase::D;
+        } else {
+          state = Site::State::VACANT;
+        }
+      } else {
+        state = Site::State::VACANT;
+      }
+    }
+    return false;
+  }
 };
 
 }  // namespace emt6ro

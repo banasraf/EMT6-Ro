@@ -65,14 +65,13 @@ class Simulation {
   size_t batch_size;
   Dims dims;
   Parameters params;
-  device::unique_ptr<Parameters> d_params;
   device::buffer<Site> data;
+  device::buffer<Protocol> protocols;
   uint32_t filled_samples = 0;
   device::buffer<GridView<Site>> lattices;
-  device::buffer<Substrates> diffusion_tmp_data;
-  device::buffer<uint8_t> vacant_neighbours;
   device::buffer<ROI> rois;
-  device::buffer<Protocol> protocols;
+  device::buffer<uint8_t> border_masks;
+  device::buffer<bool> division_ready;
   CuRandEngineState rand_state;
   device::buffer<uint32_t> results;
   uint32_t step_ = 0;
