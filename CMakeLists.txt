@@ -40,5 +40,3 @@ add_subdirectory(src)
 if (${EMT6RO_BUILD_EXAMPLES})
     add_subdirectory(example)
 endif()
-
-add_subdirectory(verification)

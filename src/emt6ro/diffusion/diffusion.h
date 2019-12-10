@@ -1,5 +1,5 @@
-#ifndef EMT6RO_SIMULATION_NEW_DIFFUSION_H
-#define EMT6RO_SIMULATION_NEW_DIFFUSION_H
+#ifndef EMT6RO_DIFFUSION_DIFFUSION_H_
+#define EMT6RO_DIFFUSION_DIFFUSION_H_
 #include "emt6ro/common/grid.h"
 #include "emt6ro/site/site.h"
 
@@ -14,4 +14,4 @@ void batchDiffusion(GridView<Site> *lattices, const ROI *rois, const uint8_t *bo
 
 }
 
-#endif  // EMT6RO_SIMULATION_NEW_DIFFUSION_H
+#endif  // EMT6RO_DIFFUSION_DIFFUSION_H_

@@ -1,17 +1,14 @@
-#include <emt6ro/common/grid.h>
 #include <algorithm>
 #include <cassert>
 #include <iostream>
 #include <random>
 #include <vector>
 #include "emt6ro/common/debug.h"
-#include "emt6ro/diffusion/grid-diffusion.h"
-#include "emt6ro/diffusion/new-diffusion.h"
-#include "emt6ro/diffusion/old-diffusion.h"
+#include "emt6ro/common/grid.h"
+#include "emt6ro/diffusion/diffusion.h"
 #include "emt6ro/division/cell-division.h"
 #include "emt6ro/simulation/simulation.h"
 #include "emt6ro/statistics/statistics.h"
-#include "simulation.h"
 
 namespace emt6ro {
 
@@ -38,7 +35,7 @@ __host__ __device__ uint8_t vacantNeighbours(const GridView<Site> &grid, int32_t
 }
 
 __global__ void cellSimulationKernel(GridView<Site> *grids, ROI *rois,
-                                     Parameters *params, curandState_t *rand_states,
+                                     Parameters params, curandState_t *rand_states,
                                      bool *dividing_cells,
                                      Protocol *protocols, uint32_t step) {
   extern __shared__ bool division_ready[];
@@ -60,26 +57,11 @@ __global__ void cellSimulationKernel(GridView<Site> *grids, ROI *rois,
   __syncthreads();
   division_ready[tid] = false;
   subi = 0;
+  auto dose = protocol.getDose(step);
   GRID_FOR(start_r, start_c, roi.dims.height + start_r, roi.dims.width + start_c) {
     auto &site = grid(r, c);
-    if (site.isOccupied()) {
-      const auto vn = vacant_neighbours[subi];
-      uint8_t alive = site.cell.updateState(site.substrates, *params, vn);
-      if (alive) {
-        auto dose = protocol.getDose(step);
-        if (dose > 0) site.cell.irradiate(dose, params->cell_repair);
-        site.cell.metabolise(site.substrates, params->metabolism);
-        bool cycle_changed = site.cell.progressClock(params->time_step);
-        alive = site.cell.tryRepair(params->cell_repair, cycle_changed, params->time_step, rand);
-        if (alive) {
-          division_ready[tid] = division_ready[tid] || site.cell.phase == Cell::CyclePhase::D;
-        } else {
-          site.state = Site::State::VACANT;
-        }
-      } else {
-        site.state = Site::State::VACANT;
-      }
-    }
+    division_ready[tid] = division_ready[tid] ||
+                          site.step(params, vacant_neighbours[subi], dose, rand);
     ++subi;
   }
   __syncthreads();
@@ -92,16 +74,6 @@ __global__ void cellSimulationKernel(GridView<Site> *grids, ROI *rois,
     __syncthreads();
   }
   if (tid == 0) dividing_cells[blockIdx.x] = division_ready[0];
-}
-
-__global__ void cellDivisionKernel(GridView<Site> *lattices, Parameters *params,
-                                    const bool *division_ready, curandState_t *rand_states) {
-  if (!division_ready[blockIdx.x]) return;
-  curandState_t *rand_state =
-      rand_states + blockDim.x * blockDim.y * blockIdx.x + blockDim.x * threadIdx.y + threadIdx.x;
-  CuRandEngine rand(rand_state);
-  auto &lattice = lattices[blockIdx.x];
-  divideCells(lattice, *params, rand);
 }
 
 }  // namespace detail
@@ -118,26 +90,20 @@ Simulation::Simulation(Dims dims, uint32_t batch_size, const Parameters &paramet
     : batch_size(batch_size)
     , dims(dims)
     , params(parameters)
-    , d_params(device::alloc_unique<Parameters>(1))
     , data(batch_size * dims.vol())
+    , protocols(batch_size)
     , lattices(batch_size)
-    , diffusion_tmp_data(batch_size * dims.vol())
-    , vacant_neighbours(batch_size * dims.vol())
     , rois(batch_size)
     , border_masks(batch_size * dims.vol())
     , division_ready(batch_size)
-    , max_dist(batch_size)
-    , protocols(batch_size)
     , rand_state(batch_size * CuBlockDimX * CuBlockDimY)
-    , results(batch_size)
-    , h_data(batch_size * dims.vol()) {
+    , results(batch_size) {
   cudaStreamCreate(&stream_);
   std::vector<uint32_t> h_seeds(batch_size * CuBlockDimX * CuBlockDimY);
   std::mt19937 rand{seed};
   std::generate(h_seeds.begin(), h_seeds.end(), rand);
   auto seeds = device::buffer<uint32_t>::fromHost(h_seeds.data(), h_seeds.size(), stream_);
   rand_state.init(seeds.data(), stream_);
-  cudaMemcpyAsync(d_params.get(), &params, sizeof(Parameters), cudaMemcpyHostToDevice, stream_);
   populateLattices();
 }
 
@@ -156,7 +122,7 @@ void Simulation::sendData(const HostGrid<Site> &grid, const Protocol &protocol, 
 
 void Simulation::step() {
   if (step_ % 64 == 0) {
-    findROIs(rois.data(), border_masks.data(), lattices.data(), batch_size, stream_);
+    updateROIs();
   }
   diffuse();
   simulateCells();
@@ -173,24 +139,23 @@ void Simulation::diffuse() {
 void Simulation::simulateCells() {
   detail::cellSimulationKernel
     <<<batch_size, dim3(CuBlockDimX, CuBlockDimY), CuBlockDimX*CuBlockDimY, stream_>>>
-    (lattices.data(), rois.data(), d_params.get(), rand_state.states(), division_ready.data(),
+    (lattices.data(), rois.data(), params, rand_state.states(), division_ready.data(),
         protocols.data(), step_);
   KERNEL_DEBUG("simulate cells")
 }
 
 void Simulation::cellDivision() {
-  detail::cellDivisionKernel<<<batch_size, dim3(CuBlockDimX/2, CuBlockDimY/2), 0, stream_>>>
-    (lattices.data(), d_params.get(), division_ready.data(), rand_state.states());
-  KERNEL_DEBUG("cell division")
+  batchCellDivision(lattices.data(), params, division_ready.data(), rand_state.states(),
+                    batch_size, stream_);
 }
 void Simulation::updateROIs() {
-  findTumorsBoundaries(lattices.data(), rois.data(), batch_size, stream_);
+  findROIs(rois.data(), border_masks.data(), lattices.data(), batch_size, stream_);
 }
 
-void Simulation::getResults(uint32_t *h_data) {
+void Simulation::getResults(uint32_t *h_results) {
   countLiving(results.data(), data.data(), dims, batch_size);
-  cudaMemcpyAsync(h_data, results.data(), batch_size * sizeof(uint32_t),
-            cudaMemcpyDeviceToHost,
+  cudaMemcpyAsync(h_results, results.data(), batch_size * sizeof(uint32_t),
+             cudaMemcpyDeviceToHost,
                   stream_);
   sync();
 }
@@ -204,7 +169,7 @@ void Simulation::run(uint32_t nsteps) {
 void Simulation::getData(Site *h_data, uint32_t sample) {
   assert(sample < batch_size);
   cudaMemcpyAsync(h_data, data.data() + sample * dims.vol(),
-           dims.vol() * sizeof(Site), cudaMemcpyDeviceToHost, stream_);
+            dims.vol() * sizeof(Site), cudaMemcpyDeviceToHost, stream_);
   sync();
 }
 

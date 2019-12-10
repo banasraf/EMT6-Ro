@@ -2,6 +2,7 @@
 #define EMT6RO_COMMON_DEBUG_H_
 
 #include <iostream>
+#include <string>
 
 #ifdef NDEBUG
 constexpr bool _DEBUG = false;

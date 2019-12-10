@@ -1,8 +1,9 @@
 #include <cuda_device_runtime_api.h>
 #include <cuda_runtime.h>
 #include <device_launch_parameters.h>
+#include <algorithm>
+#include "emt6ro/diffusion/diffusion.h"
 #include "emt6ro/common/debug.h"
-#include "new-diffusion.h"
 
 namespace emt6ro {
 
@@ -74,19 +75,20 @@ __device__ int32_t maxi(int32_t rhs, int32_t lhs) {
 }
 
 __device__ int32_t distance(Coords a, Coords b) {
-  auto dist_f = sqrtf(float((a.r-b.r)*(a.r-b.r) + (a.c-b.c)*(a.c-b.c)));
+  auto dist2_f = static_cast<float>((a.r-b.r)*(a.r-b.r) + (a.c-b.c)*(a.c-b.c));
+  auto dist_f = sqrtf(dist2_f);
   return static_cast<int32_t>(ceilf(dist_f));
 }
 
 __device__ void fillBorderMask(uint8_t *border_mask, ROI roi, Coords mid, int32_t max_dist) {
   GridView<uint8_t> mask{border_mask, {roi.dims.height + 2, roi.dims.width + 2}};
-  float midr = float(roi.dims.height) / 2;
-  float midc = float(roi.dims.width) / 2;
+  float midr = roi.dims.height / 2.f;
+  float midc = roi.dims.width / 2.f;
   auto dist = [=](int32_t r, int32_t c) {
-    float fr = r; float fc = c;
-    return sqrtf(float((fr-midr)*(fr-midr) + (fc-midc)*(fc-midc)));
+    float fr = r, fc = c;
+    return sqrtf((fr-midr)*(fr-midr) + (fc-midc)*(fc-midc));
   };
-  GRID_FOR(0, 0,roi.dims.height+2, roi.dims.width+2) {
+  GRID_FOR(0, 0, roi.dims.height+2, roi.dims.width+2) {
     if (dist(r, c) >= max_dist) {
       mask(r, c) = 1;
     } else {
@@ -122,7 +124,9 @@ __global__ void findROIsKernel(ROI *rois, uint8_t *border_masks, const GridView<
   GridView<int32_t> dist_view{shared_dist, b_dims};
   dist_view(threadIdx.y, threadIdx.x) = 0;
   __syncthreads();
-  coordsReduction(dist_view, lattice, min_, {max_.r - min_.r + 1, max_.c - min_.c + 1}, collect_dist, maxi);
+  coordsReduction(dist_view, lattice, min_,
+                  {max_.r - min_.r + 1, max_.c - min_.c + 1},
+                  collect_dist, maxi);
   int32_t max_dist = dist_view(0, 0);
   int32_t sub_r = (mid.r <= max_dist) ? 1 : mid.r - max_dist;
   int32_t sub_c = (mid.c <= max_dist) ? 1 : mid.c - max_dist;
@@ -146,7 +150,8 @@ void findROIs(ROI *rois, uint8_t *border_masks, const GridView<Site> *lattices,
   KERNEL_DEBUG("findROIs kernel")
 }
 
-__device__ Substrates diffusion_differential(const GridView<Substrates> &lattice, int32_t r, int32_t c,
+__device__ Substrates diffusion_differential(const GridView<Substrates> &lattice,
+                                             int32_t r, int32_t c,
                                              const Parameters::Diffusion &params) {
   constexpr float HS = 2 * M_SQRT2f32;
   constexpr float f = 4. + HS;
@@ -184,7 +189,7 @@ __global__ void diffusionKernel(GridView<Site> *lattices, const ROI *rois,
   uint8_t subi = 0;
   for (int32_t i = 0; i < steps; ++i) {
     subi = 0;
-    GRID_FOR(1, 1, roi.dims.height,roi.dims.width) {
+    GRID_FOR(1, 1, roi.dims.height, roi.dims.width) {
       if (!b_mask(r, c)) {
         diff[subi] = diffusion_differential(tmp_grid, r, c, params);
       }
@@ -192,7 +197,7 @@ __global__ void diffusionKernel(GridView<Site> *lattices, const ROI *rois,
     }
     __syncthreads();
     subi = 0;
-    GRID_FOR(1, 1, roi.dims.height,roi.dims.width) {
+    GRID_FOR(1, 1, roi.dims.height, roi.dims.width) {
       if (!b_mask(r, c)) {
         tmp_grid(r, c) += diff[subi];
       }
@@ -205,7 +210,7 @@ __global__ void diffusionKernel(GridView<Site> *lattices, const ROI *rois,
       auto dr = r - roi.origin.r + 1;
       auto dc = c - roi.origin.c + 1;
       lattice(r, c).substrates = tmp_grid(dr, dc);
-   }
+  }
 }
 
 void batchDiffusion(GridView<Site> *lattices, const ROI *rois, const uint8_t *border_masks,
@@ -217,4 +222,4 @@ void batchDiffusion(GridView<Site> *lattices, const ROI *rois, const uint8_t *bo
   KERNEL_DEBUG("diffusion kernel")
 }
 
-}
+}  // namespace emt6ro

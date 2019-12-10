@@ -53,8 +53,11 @@ __host__ __device__ Coords chooseNeighbour(uint32_t r, uint32_t c, R &rand) {
   }
 }
 
-
 __device__ void divideCells(GridView<Site> &lattice, const Parameters &params, CuRandEngine &rand);
+
+void batchCellDivision(GridView<Site> *lattices, Parameters params, const bool *division_ready,
+                       curandState_t *rand_states, int32_t batch_size,
+                       cudaStream_t stream = nullptr);
 
 }  // namespace emt6ro
 
