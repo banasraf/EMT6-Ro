@@ -86,9 +86,9 @@ void Simulation::populateLattices() {
   KERNEL_DEBUG("populate")
 }
 
-Simulation::Simulation(Dims dims, uint32_t batch_size, const Parameters &parameters, uint32_t seed)
+Simulation::Simulation(uint32_t batch_size, const Parameters &parameters, uint32_t seed)
     : batch_size(batch_size)
-    , dims(dims)
+    , dims({parameters.lattice_dims.height+2, parameters.lattice_dims.width+2})
     , params(parameters)
     , data(batch_size * dims.vol())
     , protocols(batch_size)

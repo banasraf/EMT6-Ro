@@ -5,6 +5,7 @@ set(CMAKE_CUDA_STANDARD 14)
 
 include_directories(${CMAKE_CUDA_TOOLKIT_INCLUDE_DIRECTORIES})
 add_compile_options($<$<COMPILE_LANGUAGE:CUDA>:-dc>)
+set(CMAKE_POSITION_INDEPENDENT_CODE ON)
 
 add_custom_target(lint
         COMMAND ${PROJECT_SOURCE_DIR}/tools/cpplint.py --root=${PROJECT_SOURCE_DIR}/src --recursive ${PROJECT_SOURCE_DIR}/src)
@@ -40,3 +41,6 @@ add_subdirectory(src)
 if (${EMT6RO_BUILD_EXAMPLES})
     add_subdirectory(example)
 endif()
+
+add_subdirectory(third-party/pybind11)
+add_subdirectory(python)
