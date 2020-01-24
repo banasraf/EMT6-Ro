@@ -111,13 +111,6 @@ PYBIND11_MODULE(py_emt6ro, m) {
 
   m.def("load_state", &loadFromFile);
 
-  m.def("add_nums", [](int a, int b) {return a + b; });
-
-  m.def("something", [](std::vector<HostGrid<Site>*> &states) {
-    for (auto state: states)
-      std::cout << state->view().dims.width << std::endl;
-  });
-
 }
 
 }
