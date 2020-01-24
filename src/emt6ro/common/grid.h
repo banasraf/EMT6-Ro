@@ -60,6 +60,11 @@ class HostGrid {
  public:
   explicit HostGrid(Dims dims): data_(new T[dims.vol()]), view_{data_.get(), dims} {}
 
+  HostGrid(const HostGrid<T> &rhs)
+  : HostGrid(rhs.view_.dims) {
+    std::copy(rhs.data_.get(), rhs.data_.get() + rhs.view_.dims.vol(), data_.get());
+  }
+
   GridView<T> view() const {
     return view_;
   }

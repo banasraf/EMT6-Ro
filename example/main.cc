@@ -34,7 +34,7 @@ static void experiment() {
       buffer<float>::fromHost(protocol_data_h.data(), 5 * 24 * HOUR_STEPS / PROTOCOL_RES);
   Protocol protocol{PROTOCOL_RES, SIM_LENGTH / 2, protocol_data.data()};
   std::random_device rd{};
-  auto simulation = Simulation({DIM, DIM}, BATCH_SIZE, params, rd());
+  auto simulation = Simulation(BATCH_SIZE, params, rd());
   simulation.sendData(state, protocol, BATCH_SIZE);
   auto start = std::chrono::steady_clock::now();
   simulation.run(10 * 24 * HOUR_STEPS);  // 10 days simulation

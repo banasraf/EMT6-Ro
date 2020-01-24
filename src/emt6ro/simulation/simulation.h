@@ -11,7 +11,7 @@ namespace emt6ro {
 
 class Simulation {
  public:
-  Simulation(Dims dims, uint32_t batch_size, const Parameters &parameters, uint32_t seed);
+  Simulation(uint32_t batch_size, const Parameters &parameters, uint32_t seed);
 
   /**
    * Send simulation data to GPU.

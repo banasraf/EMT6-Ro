@@ -7,8 +7,25 @@
 namespace emt6ro {
 namespace device {
 
+class Guard {
+  int previous_id{};
+
+ public:
+  explicit Guard(int new_id) {
+    cudaGetDevice(&previous_id);
+    cudaSetDevice(new_id);
+  }
+
+  ~Guard() {
+    cudaSetDevice(previous_id);
+  }
+};
+
 struct Deleter {
+  int device_id;
+
   void operator()(void *ptr) {
+    Guard device_guard(device_id);
     cudaFree(ptr);
   }
 };
@@ -22,7 +39,9 @@ unique_ptr<T> alloc_unique(size_t count = 1) {
       "Allocated type must be default constructable.");
   T *ptr;
   cudaMalloc(&ptr, count * sizeof(T));
-  return {ptr, Deleter{}};
+  int device_id;
+  cudaGetDevice(&device_id);
+  return {ptr, Deleter{device_id}};
 }
 
 }  // namespace device
