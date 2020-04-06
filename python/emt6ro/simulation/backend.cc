@@ -21,8 +21,10 @@ class Experiment {
   uint32_t protocol_resolution;
   std::vector<HostGrid<Site>> tumors_data;
   int64_t protocol_data_size;
+  device::Guard device_guard;
   device::buffer<float> protocols_data;
   std::random_device rd{};
+  Parameters params;
   Simulation simulation;
   std::future<std::vector<uint32_t>> results_;
   bool running = false;
@@ -39,7 +41,9 @@ class Experiment {
   , protocol_resolution(prot_resolution)
   , tumors_data{}
   , protocol_data_size{(sim_steps + prot_resolution - 1) / prot_resolution}
+  , device_guard{device_id}
   , protocols_data(protocol_data_size * protocols_num)
+  , params(params)
   , simulation(tumors_num * tests_num * protocols_num, params, rd()) {
     for (auto t: tumors) {
       tumors_data.push_back(*t);
@@ -47,28 +51,27 @@ class Experiment {
   }
 
   void run(const std::vector<std::vector<std::pair<int, float>>> &protocols) {
-    device::Guard device_guard{device_id};
     if (running)
       throw std::runtime_error("Experiment already running.");
     if (protocols.size() != protocols_num)
       throw std::runtime_error("Wrong number of protocols.");
-    prepareProtocolsData(protocols);
-    simulation.reset();
-    for (int p = 0; p < protocols_num; ++p) {
-      Protocol prot{protocol_resolution, simulation_steps,
-                    protocols_data.data() + p * protocol_data_size};
-      for (auto &tumor : tumors_data) {
-        simulation.sendData(tumor, prot, tests_num);
-      }
-    }
-    results_ = std::async(std::launch::async, [&]() {
+    running = true;
+      results_ = std::async(std::launch::async, [&, protocols]() {
       device::Guard d_g{device_id};
+      prepareProtocolsData(protocols);
+      for (int p = 0; p < protocols_num; ++p) {
+        Protocol prot{protocol_resolution, simulation_steps,
+                      protocols_data.data() + p * protocol_data_size};
+        for (auto &tumor : tumors_data) {
+          simulation.sendData(tumor, prot, tests_num);
+        }
+      }
       simulation.run(simulation_steps);
       std::vector<uint32_t> res(tumors_num * tests_num * protocols_num);
-      simulation.getResults(res.data());
+      simulation.getResults(res.data()); 
+      simulation = Simulation(tumors_num * tests_num * protocols_num, params, rd());
       return res;
     });
-    running = true;
   }
 
   std::vector<uint32_t> results() {
@@ -80,7 +83,7 @@ class Experiment {
   }
 
  private:
-  void prepareProtocolsData(const std::vector<std::vector<std::pair<int, float>>> &protocols) {
+  void prepareProtocolsData(const std::vector<std::vector<std::pair<int, float>>> &protocols) {   
     std::vector<float> host_protocol(protocol_data_size);
     size_t p_i = 0;
     for (const auto &protocol: protocols) {
@@ -97,12 +100,12 @@ class Experiment {
 
 };
 
-PYBIND11_MODULE(py_emt6ro, m) {
+PYBIND11_MODULE(backend, m) {
   py::class_<HostGrid<Site>>(m, "TumorState");
 
   py::class_<Parameters>(m, "Parameters");
 
-  py::class_<Experiment>(m, "Experiment")
+  py::class_<Experiment>(m, "_Experiment")
       .def(py::init<const Parameters&, std::vector<HostGrid<Site>*>, int, int, int, int, int>())
       .def("run", &Experiment::run)
       .def("results", &Experiment::results);

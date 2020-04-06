@@ -18,6 +18,11 @@ EMT6-Ro/build/$ make
 ```
 It should produce `EMT6-Ro/build/example/example` executable.
 
+**Installing the Python bindings:**
+```bash
+EMT6-Ro/build/$ python3 -m pip install python/
+```
+
 **Running tests:**
 ```bash
 EMT6-Ro/build/$ TEST_DATA_DIR=../data/test src/emt6ro-tests

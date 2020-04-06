@@ -12,7 +12,26 @@ namespace emt6ro {
 class Simulation {
  public:
   Simulation(uint32_t batch_size, const Parameters &parameters, uint32_t seed);
-
+  
+  Simulation& operator=(Simulation &&rhs) {
+    if (&rhs == this)
+      return *this;
+    batch_size = rhs.batch_size;
+    params = rhs.params;
+    data = std::move(rhs.data);
+    protocols = std::move(rhs.protocols);
+    filled_samples = rhs.filled_samples;
+    lattices = std::move(rhs.lattices);
+    rois = std::move(rhs.rois);
+    border_masks = std::move(rhs.border_masks);
+    division_ready = std::move(rhs.division_ready);
+    rand_state = std::move(rhs.rand_state);
+    results = std::move(rhs.results);
+    step_ = rhs.step_;
+    str = std::move(rhs.str);
+    return *this;
+  }
+ 
   /**
    * Send simulation data to GPU.
    * @param grid - tumor data
@@ -44,10 +63,8 @@ class Simulation {
   void sync();
 
   cudaStream_t stream() {
-    return stream_;
+    return str.stream_;
   }
-
-  void reset();
 
  private:
   void populateLattices();
@@ -75,7 +92,7 @@ class Simulation {
   CuRandEngineState rand_state;
   device::buffer<uint32_t> results;
   uint32_t step_ = 0;
-  cudaStream_t stream_;
+  device::Stream str{};
 };
 
 }  // namespace emt6ro

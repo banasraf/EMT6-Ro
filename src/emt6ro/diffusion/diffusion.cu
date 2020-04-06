@@ -153,13 +153,13 @@ void findROIs(ROI *rois, uint8_t *border_masks, const GridView<Site> *lattices,
 __device__ Substrates diffusion_differential(const GridView<Substrates> &lattice,
                                              int32_t r, int32_t c,
                                              const Parameters::Diffusion &params) {
-  constexpr float HS = 2 * M_SQRT2f32;
+  constexpr float HS = 2 * M_SQRT2;
   constexpr float f = 4. + HS;
   Substrates result = lattice(r - 1, c) + lattice(r, c - 1) +
                       lattice(r + 1, c) + lattice(r, c + 1);
   result += (lattice(r - 1, c - 1)+ lattice(r - 1, c + 1) +
              lattice(r + 1, c - 1) + lattice(r + 1, c + 1)) *
-            M_SQRT1_2f32;
+            M_SQRT1_2;
   result -= lattice(r, c) * f;
   result *= (params.coeffs * params.time_step * HS) / f;
   return result;
