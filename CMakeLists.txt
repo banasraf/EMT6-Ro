@@ -43,4 +43,4 @@ if (${EMT6RO_BUILD_EXAMPLES})
 endif()
 
 add_subdirectory(third-party/pybind11)
-add_subdirectory(python)
+add_subdirectory(python/emt6ro/simulation)

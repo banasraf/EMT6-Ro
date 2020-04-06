@@ -1,15 +1,15 @@
-import py_emt6ro as sim
+import emt6ro.simulation as sim
 import numpy as np
 params = sim.load_parameters("../data/default-parameters.json")
 state = sim.load_state("../data/test_tumor.txt", params)
 state2 = sim.load_state("../data/test_tumor.txt", params)
-experiment = sim.Experiment(params, [state, state2],
-                            500,  # tests number per protocol and tumor
-                            1,  # protocols number
-                            144000,  # simulation steps number
-                            300,  # protocol resolution
-                            0)  # GPU id
-experiment.run([[(0, 5.), (42 * 600, 2.5), (66 * 600, 2.5)]])
-res = experiment.results()
-print(np.mean(res))
-print(np.var(res))
+protocols = [[(0, 5.), (42 * 600, 2.5), (66 * 600, 2.5)], [(0, 2.5), (42 * 600, 1), (66 * 600, 1.5)]]
+experiment = sim.Experiment(params, [state, state2], 200, len(protocols))  
+
+experiment.run(protocols)
+res = experiment.get_results()
+print("Protocol 1 result")
+print(np.mean(res[0]))
+print("Protocol 2 result")
+print(np.mean(res[1]))
+

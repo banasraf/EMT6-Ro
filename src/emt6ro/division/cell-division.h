@@ -44,12 +44,12 @@ __host__ __device__ static inline Coords mapToOrthoNeighbour(int32_t r, int32_t 
 template <typename R>
 __host__ __device__ Coords chooseNeighbour(uint32_t r, uint32_t c, R &rand) {
   static constexpr float diagProb = 4.;
-  static constexpr float orthoProb = 4. * M_SQRT2f32;
+  static constexpr float orthoProb = 4. * M_SQRT2;
   auto score = rand.uniform() * (diagProb + orthoProb);
   if (score < diagProb) {
     return mapToDiagNeighbour(r, c, static_cast<uint8_t>(score));
   } else {
-    return mapToOrthoNeighbour(r, c, static_cast<uint8_t>((score - diagProb) / M_SQRT2f32));
+    return mapToOrthoNeighbour(r, c, static_cast<uint8_t>((score - diagProb) / M_SQRT2));
   }
 }
 

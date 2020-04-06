@@ -7,6 +7,32 @@
 namespace emt6ro {
 namespace device {
 
+struct Stream {
+  cudaStream_t stream_;
+
+  Stream() {
+    cudaStreamCreate(&stream_);
+  }
+
+  Stream(Stream &&rhs) {
+    stream_ = rhs.stream_;
+    rhs.stream_ = 0;
+  }
+
+  Stream& operator=(Stream &&rhs) {
+    if (&rhs == this)
+      return *this;
+    cudaStreamDestroy(stream_);
+    stream_ = rhs.stream_;
+    rhs.stream_ = 0;
+    return *this;
+  }
+
+  ~Stream() {
+    cudaStreamDestroy(stream_);
+  }
+};
+
 class Guard {
   int previous_id{};
 

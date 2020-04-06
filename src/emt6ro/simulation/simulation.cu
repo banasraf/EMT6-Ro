@@ -81,7 +81,7 @@ __global__ void cellSimulationKernel(GridView<Site> *grids, ROI *rois,
 void Simulation::populateLattices() {
   auto blocks = (batch_size + 1023) / 1024;
   auto block_size = (batch_size > 1024) ? 1024 : batch_size;
-  detail::populateGridViewsKernel<<<blocks, block_size, 0, stream_>>>
+  detail::populateGridViewsKernel<<<blocks, block_size, 0, str.stream_>>>
     (lattices.data(), batch_size, dims, data.data());
   KERNEL_DEBUG("populate")
 }
@@ -98,12 +98,11 @@ Simulation::Simulation(uint32_t batch_size, const Parameters &parameters, uint32
     , division_ready(batch_size)
     , rand_state(batch_size * CuBlockDimX * CuBlockDimY)
     , results(batch_size) {
-  cudaStreamCreate(&stream_);
   std::vector<uint32_t> h_seeds(batch_size * CuBlockDimX * CuBlockDimY);
   std::mt19937 rand{seed};
   std::generate(h_seeds.begin(), h_seeds.end(), rand);
-  auto seeds = device::buffer<uint32_t>::fromHost(h_seeds.data(), h_seeds.size(), stream_);
-  rand_state.init(seeds.data(), stream_);
+  auto seeds = device::buffer<uint32_t>::fromHost(h_seeds.data(), h_seeds.size(), str.stream_);
+  rand_state.init(seeds.data(), str.stream_);
   populateLattices();
 }
 
@@ -112,9 +111,9 @@ void Simulation::sendData(const HostGrid<Site> &grid, const Protocol &protocol, 
   assert(grid.view().dims == dims);
   for (uint32_t i = filled_samples; i < filled_samples + multi; ++i) {
     auto view = grid.view();
-    data.copyHost(view.data, dims.vol(), dims.vol() * i, stream_);
+    data.copyHost(view.data, dims.vol(), dims.vol() * i, str.stream_);
     KERNEL_DEBUG("data")
-    protocols.copyHost(&protocol, 1, i, stream_);
+    protocols.copyHost(&protocol, 1, i, str.stream_);
     KERNEL_DEBUG("protocol")
   }
   filled_samples += multi;
@@ -133,12 +132,12 @@ void Simulation::step() {
 void Simulation::diffuse() {
   batchDiffusion(lattices.data(), rois.data(), border_masks.data(), params.diffusion_params,
                  params.external_levels, params.time_step/params.diffusion_params.time_step,
-                 dims, batch_size, stream_);
+                 dims, batch_size, str.stream_);
 }
 
 void Simulation::simulateCells() {
   detail::cellSimulationKernel
-    <<<batch_size, dim3(CuBlockDimX, CuBlockDimY), CuBlockDimX*CuBlockDimY, stream_>>>
+    <<<batch_size, dim3(CuBlockDimX, CuBlockDimY), CuBlockDimX*CuBlockDimY, str.stream_>>>
     (lattices.data(), rois.data(), params, rand_state.states(), division_ready.data(),
         protocols.data(), step_);
   KERNEL_DEBUG("simulate cells")
@@ -146,17 +145,16 @@ void Simulation::simulateCells() {
 
 void Simulation::cellDivision() {
   batchCellDivision(lattices.data(), params, division_ready.data(), rand_state.states(),
-                    batch_size, stream_);
+                    batch_size, str.stream_);
 }
 void Simulation::updateROIs() {
-  findROIs(rois.data(), border_masks.data(), lattices.data(), batch_size, stream_);
+  findROIs(rois.data(), border_masks.data(), lattices.data(), batch_size, str.stream_);
 }
 
 void Simulation::getResults(uint32_t *h_results) {
-  countLiving(results.data(), data.data(), dims, batch_size);
+  countLiving(results.data(), data.data(), dims, batch_size, str.stream_);
   cudaMemcpyAsync(h_results, results.data(), batch_size * sizeof(uint32_t),
-             cudaMemcpyDeviceToHost,
-                  stream_);
+                  cudaMemcpyDeviceToHost, str.stream_);
   sync();
 }
 void Simulation::run(uint32_t nsteps) {
@@ -169,18 +167,12 @@ void Simulation::run(uint32_t nsteps) {
 void Simulation::getData(Site *h_data, uint32_t sample) {
   assert(sample < batch_size);
   cudaMemcpyAsync(h_data, data.data() + sample * dims.vol(),
-            dims.vol() * sizeof(Site), cudaMemcpyDeviceToHost, stream_);
+            dims.vol() * sizeof(Site), cudaMemcpyDeviceToHost, str.stream_);
   sync();
 }
 
 void Simulation::sync() {
-  cudaStreamSynchronize(stream_);
-}
-
-void Simulation::reset() {
-  sync();
-  step_ = 0;
-  filled_samples = 0;
+  cudaStreamSynchronize(str.stream_);
 }
 
 }  // namespace emt6ro
