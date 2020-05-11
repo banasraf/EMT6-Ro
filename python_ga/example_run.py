@@ -49,6 +49,7 @@ config = {
         'mut_swap': {'mut_prob': 0.03},
         'mut_random': {'mut_prob': 0.09, 'max_value': 118},
         'mutate_merge': None,
+        'mutate_split': None,
     },
     'select_n': 1,
     'max_iter': 100,

@@ -100,26 +100,26 @@ Splitting a non-zero dose (> 0.25Gy) into 2 doses.
 NextGeneration - next population, array [population_size, element_size].
 
 '''
-def mutate_split(NextGeneration, max_dose=10, min_dose=0.5):
+def mutate_split(NextGeneration, config, max_dose=10, min_dose=0.5):
     NextGeneration = np.asarray(NextGeneration)
     length = len(NextGeneration[:, 1])
     width = len(NextGeneration[1, :])
     for i in range(length):
         while True:
-            p = random.random(0,width)
+            p = np.random.randint(0,width)
             if NextGeneration[i,p] > min_dose:
                 k = NextGeneration[i,p] / min_dose
-                split = random.random(0, k)
+                split = np.random.randint(0, k)
                 d1 = split * min_dose
                 d2 = NextGeneration[i,p] - d1
                 NextGeneration[i, p] = 0
                 while True:
-                    p = random.random(0, width)
+                    p = np.random.randint(0, width)
                     if NextGeneration[i,p] + d1 < max_dose:
                         NextGeneration[i,p] = NextGeneration[i,p] + d1
                         break
                 while True:
-                    p = random.random(0, width)
+                    p = np.random.randint(0, width)
                     if NextGeneration[i,p] + d2 < max_dose:
                         NextGeneration[i,p] = NextGeneration[i,p] + d2
                         break
@@ -139,6 +139,7 @@ def mutations(population, config):
         'mut_swap':         mutate_swap,
         'mut_random':       mutate_random_change,
         'mutate_merge':     mutate_merge,
+        'mutate_split':     mutate_split,
     }
 
     for mut_type in list(config.keys()):
