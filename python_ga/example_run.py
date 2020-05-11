@@ -16,24 +16,30 @@ class MockPredictionModel:
 # params = load_parameters("data/default-parameters.json")
 # tumors = [load_state("data/tumor-lib/tumor-{}.txt".format(i), params) for i in range(1, 11)]
 
-
-model = MockPredictionModel()
-converter = ConvertRepresentation()
+# num_gpus = 2
+# num_protocols = 2
+# num_tests = 20
 # model = EMT6RoModel(params, tumors, num_protocols, num_tests, num_gpus)
-num_gpus = 2
-num_protocols = 2
-num_tests = 20
 
 
 hour_steps = 600
+protocol_resolution = 300
+model = MockPredictionModel()
+converter = ConvertRepresentation(hour_steps=hour_steps, protocol_resolution=protocol_resolution)
+
+
 prot1 = [(hour_steps * 12, 1.25), (hour_steps * 36, 3.0)]
 prot2 = [(hour_steps * 12, 1.25), (hour_steps * 24, 1.5), (hour_steps * 36, 1.5)]
+list_protocols = np.asarray([
+    converter.convert_pairs_to_list(protocol=prot1),
+    converter.convert_pairs_to_list(protocol=prot2)
+])
 
 
-prots = [prot1, prot2]
-
-
-
+pair_protocols = np.asarray([
+    converter.convert_list_to_pairs(protocol=list_protocols[0]),
+    converter.convert_list_to_pairs(protocol=list_protocols[1]),
+])
 
 
 config = {
@@ -44,11 +50,11 @@ config = {
         'mut_random': {'mut_prob': 0.09, 'max_value': 118},
         'mutate_merge': None,
     },
-    'select_n': 0.25,
+    'select_n': 1,
     'max_iter': 100,
     'stop_fitness': -0.5,
 }
 
 
-population = get_rand_population(8)
-new_genetic_algorithm(population, model, config)
+population = get_rand_population(2)
+new_genetic_algorithm(list_protocols, model, config)
