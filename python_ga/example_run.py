@@ -28,17 +28,30 @@ model = MockPredictionModel()
 converter = ConvertRepresentation(hour_steps=hour_steps, protocol_resolution=protocol_resolution)
 
 
-prot1 = [(hour_steps * 12, 1.25), (hour_steps * 36, 3.0)]
-prot2 = [(hour_steps * 12, 1.25), (hour_steps * 24, 1.5), (hour_steps * 36, 1.5)]
+sample_protocols = [
+    # Initial
+    [(hour_steps * 12, 1.25), (hour_steps * 36, 3.0)],
+    [(hour_steps * 12, 1.25), (hour_steps * 24, 1.5), (hour_steps * 36, 1.5)],
+
+    # Sample
+    [(hour_steps * 12, 1.25), (hour_steps * 36, 3.0)],
+    [(hour_steps * 8, 1.25), (hour_steps * 30, 1.25), (hour_steps * 48, 1.75)],
+    [(hour_steps * 24, 4.25)],
+    [(hour_steps * 12, 2), (hour_steps * 36, 2.25)],
+    [(hour_steps * 6, 1), (hour_steps * 18, 1), (hour_steps * 30, 2.25)],
+    [(hour_steps * 36, 2), (hour_steps * 54, 2.25)],
+]
+
+
 list_protocols = np.asarray([
-    converter.convert_pairs_to_list(protocol=prot1),
-    converter.convert_pairs_to_list(protocol=prot2)
+    converter.convert_pairs_to_list(protocol=protocol)
+    for protocol in sample_protocols
 ])
 
 
 pair_protocols = np.asarray([
-    converter.convert_list_to_pairs(protocol=list_protocols[0]),
-    converter.convert_list_to_pairs(protocol=list_protocols[1]),
+    converter.convert_list_to_pairs(protocol=protocol)
+    for protocol in list_protocols
 ])
 
 
@@ -47,15 +60,16 @@ config = {
     'selection': {'type': 'simple_selection'},
     'mutations': {
         'mut_swap': {'mut_prob': 0.03},
-        'mut_random': {'mut_prob': 0.09, 'max_value': 118},
+        'mut_random': {'mut_prob': 0.01, 'max_value': 10},
         'mutate_merge': None,
         'mutate_split': None,
     },
-    'select_n': 1,
+    'select_n': 0.5,
     'max_iter': 100,
     'stop_fitness': -0.5,
+    'normalization': {'min': 0.25, 'max': 10, 'step': 0.25},
 }
 
 
-population = get_rand_population(2)
+# population = get_rand_population(8)
 new_genetic_algorithm(list_protocols, model, config)

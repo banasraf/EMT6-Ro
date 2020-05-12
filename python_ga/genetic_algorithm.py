@@ -147,6 +147,56 @@ def mutations(population, config):
 
     return population
 
+
+# ==NORMALIZATION=======================================================================================================
+
+
+def round_dose(genome, min, step):
+    """
+    Metoda zaokrągla wartości dawek po normalizacji do 0.25Gy
+    :param genome:          list
+    :param min:             float
+    :param step:            float
+    :return: rounded_genome:list
+    """
+    inverse_step = int(1 / step)
+    round_to_step = lambda genome: [round(value * inverse_step) / inverse_step for value in genome]
+    rounded_genome = round_to_step(genome)
+    return rounded_genome
+
+
+def normalize(population, config):
+    """
+    Normalizacja wartości dawek po mutacjach. Mutacje mogą zmienić wartości dawek do wartości przekraczających ustalone
+    ograniczenia. Normalizacja polega na porownaniu obecnej łącznej dawki z wartoscią maksymalną i zmniejszeniu
+    poszczegolnych dawek proporcjonalnie do roznicy pomiedzy obiema wartosciami.
+
+    W domyślnej konfiguracji maksymalna łączna dawka może wynosić 10Gy. Minimalna dawka to 0.25Gy,
+    identycznie jak wartość o ktorą zwiekszamy dawkę.
+    :param population:      list
+    :oaram config:          dict
+    :return: population:     list
+    """
+    # {'min': 0.25, 'max': 10, 'step': 0.25}
+
+    normalization_factor = [
+        np.clip(sum(genome) / config['normalization']['max'], 1, config['normalization']['max'])
+        for genome in population
+    ]
+
+    normalized_population = [
+        genome / normalization_factor[index]
+        for index, genome in enumerate(population)
+    ]
+
+    rounded_population = [
+        round_dose(genome=genome, min=config['normalization']['min'], step=config['normalization']['step'])
+        for genome in normalized_population
+    ]
+
+    return rounded_population
+
+
 # ======================================================================================================================
 # CREATE NEXT GENERATION
 # ======================================================================================================================
@@ -393,15 +443,18 @@ def new_genetic_algorithm(population, model, config):
     pop_fitness = calculate_fitenss(population, model)
 
     while n_generation <= config['max_iter'] and min(pop_fitness) > config['stop_fitness']:
-        # fitness
-        pop_fitness = calculate_fitenss(population, model)
-        metrics = collect_metrics(n_generation, pop_fitness, metrics)
-
         # nowe pokolenie
         population = next_generation(population, pop_fitness, config)
 
         # mutacje
         population = mutations(population, config['mutations'])
+
+        # normalizacja
+        population = normalize(population, config)
+
+        # fitness
+        pop_fitness = calculate_fitenss(population, model)
+        metrics = collect_metrics(n_generation, pop_fitness, metrics)
 
         n_generation += 1
 
