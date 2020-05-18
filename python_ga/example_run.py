@@ -60,14 +60,15 @@ config = {
     'selection': {'type': 'simple_selection'},
     'mutations': {
         'mut_swap': {'mut_prob': 0.03},
-        'mut_random': {'mut_prob': 0.01, 'max_value': 10},
-        'mutate_merge': None,
-        'mutate_split': None,
+        'mut_dose_value': {'mut_prob': 0.05, 'min_value': 0.25, 'max_value': 10, 'step_value': 0.25},
+        'mut_time_value': {'mut_prob': 0.05},
+        'mutate_merge': {'mut_prob': 0.05},
+        'mutate_split': {'mut_prob': 0.05},
     },
     'select_n': 0.5,
     'max_iter': 100,
     'stop_fitness': -0.5,
-    'normalization': {'min': 0.25, 'max': 10, 'step': 0.25},
+    'normalization': {'min_value': 0.25, 'max_value': 10, 'step_value': 0.25},
 }
 
 
