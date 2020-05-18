@@ -490,6 +490,7 @@ def new_genetic_algorithm(population, model, config):
     pop_fitness = calculate_fitenss(population, model)
 
     while n_generation <= config['max_iter'] and min(pop_fitness) > config['stop_fitness']:
+
         # nowe pokolenie
         population = next_generation(population, pop_fitness, config)
 
