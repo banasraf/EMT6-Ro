@@ -11,6 +11,13 @@ import matplotlib.pyplot as plt
 # ======================================================================================================================
 
 def collect_metrics(n_generation, pop_fitness, metrics):
+    """
+    Method for collecting metrics (average fitness and best fitness) for a given population
+    :param n_generation: generation id
+    :param pop_fitness: population with computed fitness function
+    :param metrics: current metrics to which we append new metrics
+    :return: metrics with added new metrics for the new population
+    """
     best_fit = min(pop_fitness)
     avg_fit = np.mean(pop_fitness)
     data = pd.DataFrame([[n_generation, best_fit, avg_fit]], columns=['generation', 'best_fit', 'avg_fit'])
@@ -18,6 +25,13 @@ def collect_metrics(n_generation, pop_fitness, metrics):
 
 
 def show_metrics(metrics, pop_fitness, population):
+    """
+    Method for showing best result and best individual
+    :param metrics:
+    :param pop_fitness:
+    :param population:
+    :return:
+    """
     fit_idx = np.argsort(pop_fitness)
     best_fit = population[fit_idx[0]]
 
@@ -59,7 +73,6 @@ def mutate_dose_value(population, config):
                     genome[gene_idx] = min_dose
                     break
                 break
-
     return population
 
 
@@ -84,7 +97,7 @@ def mutate_time_value(population, config):
 def mutate_swap(population, config):
     """
     Mutacja wymiay: badany jest każdy gen w genomie wszystkich osobników w populacji. Jeżeli wylosowana wartość p jest
-    większa niż określone prawdopodobieństwo mutacji, wybrany gen jest zamieniamy miejscami z poprzedzającym go genem.
+    większa niż określone prawdopodobieństwo mutacji, wybrany gen jest zamieniamy miejscami z losowo wybranym innym genem
     :param population:      list
     :param config:          dict
     :return: population:    list
@@ -95,8 +108,9 @@ def mutate_swap(population, config):
         for j in range(width):
             p = np.random.uniform()
             if p < config['mut_prob']:
-                population[i][j], population[i][j - 1] = population[i][j - 1], population[i][j]
-
+                k = np.random.randint(0, width-1)
+                k = (j + k) % width
+                population[i][j], population[i][k] = population[i][k], population[i][j]
     return population
 
 
