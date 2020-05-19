@@ -34,10 +34,38 @@ def show_metrics(metrics, pop_fitness, population):
 # ======================================================================================================================
 
 
-def mutate_random_change(population, config):
+def mutate_dose_value(population, config):
     """
-    Mutacja zmian losowych: badany jest każdy gen w genomie wszystkich osobników w populacji. Jeżeli wylosowana wartość
-    p jest większa niż określone prawdopodobieństwo mutacji, wartość wybranego genu jest losowana.
+    Mutacja zmian losowych dawki: badana jest każda dawka w genomie wszystkich osobników w populacji. Jeżeli wylosowana
+    wartość p jest większa niż określone prawdopodobieństwo mutacji, wartość wybranej jest losowana. Zakres wartości
+    dawki ograniczony jest między 0.25Gy a 10Gy z krokiem co 0.25Gy. Oba limity odnoszą sie do sumarycznej wartosci
+    dawek dla calego genomu.
+    :param population:
+    :param config:
+    :return:
+    """
+    max_dose = config['max_value']
+    min_dose = config['min_value']
+    step = config['step_value']
+    for i, genome in enumerate(population):
+        for gene_idx in range(len(genome)):
+            p = np.random.uniform()
+            if p < config['mut_prob']:
+                limit_value = min(max_dose, max_dose - sum(genome))
+                if limit_value > min_dose:
+                    new_dose_value = np.random.randint(0, int(round((limit_value - min_dose) / step))) * step + min_dose
+                    genome[gene_idx] = new_dose_value
+                elif limit_value > 0:
+                    genome[gene_idx] = min_dose
+                    break
+                break
+
+    return population
+
+
+def mutate_time_value(population, config):
+    """
+    Mutacja zmian losowych czasu podania dawki
     :param population:
     :param config:
     :return:
@@ -46,8 +74,10 @@ def mutate_random_change(population, config):
         for gene_idx in range(len(genome)):
             p = np.random.uniform()
             if p < config['mut_prob']:
-                genome[gene_idx] = np.random.randint(config['max_value'])
-
+                if genome[gene_idx] > 0:
+                    new_dose_time = np.random.randint(len(genome))
+                    genome[new_dose_time] = genome[gene_idx]
+                    genome[gene_idx] = 0
     return population
 
 
@@ -70,61 +100,61 @@ def mutate_swap(population, config):
     return population
 
 
-
-'''
-Merging 2 doses (potentially zero) into one dose
-NextGeneration - next population, array [population_size, element_size]
-'''
-def mutate_merge(NextGeneration, config, max_dose=10):
-    NextGeneration = np.asarray(NextGeneration)
-    length = len(NextGeneration[:, 1])
-    width = len(NextGeneration[1, :])
+def mutate_merge(population, config, max_dose=10):
+    """
+    Merging 2 doses (potentially zero) into one dose
+    population - next population, array [population_size, element_size]
+    """
+    population = np.asarray(population)
+    length = len(population[:, 1])
+    width = len(population[1, :])
     for i in range(length):
-        while True:
-            p = np.random.randint(0,width)
-            q = np.random.randint(0,width)
-            if (NextGeneration[i,p] + NextGeneration[i,q]) <= max_dose:
-                if np.random.uniform() < 0.5:
-                    NextGeneration[i,p] = NextGeneration[i,p] + NextGeneration[i,q]
-                    NextGeneration[i,q] = 0
-                    break
-                else:
-                    NextGeneration[i,q] = NextGeneration[i,p] + NextGeneration[i,q]
-                    NextGeneration[i,p] = 0
-                    break
-    return NextGeneration
+        if np.random.uniform() < config['mut_prob']:
+            while True:
+                p = np.random.randint(0, width)
+                q = np.random.randint(0, width)
+                if (population[i, p] + population[i, q]) <= max_dose:
+                    if np.random.uniform() < 0.5:
+                        population[i, p] = population[i, p] + population[i, q]
+                        population[i, q] = 0
+                        break
+                    else:
+                        population[i, q] = population[i, p] + population[i, q]
+                        population[i, p] = 0
+                        break
+    return population
 
 
-'''
-Splitting a non-zero dose (> 0.25Gy) into 2 doses.
-NextGeneration - next population, array [population_size, element_size].
-
-'''
-def mutate_split(NextGeneration, config, max_dose=10, min_dose=0.5):
-    NextGeneration = np.asarray(NextGeneration)
-    length = len(NextGeneration[:, 1])
-    width = len(NextGeneration[1, :])
+def mutate_split(population, config, max_dose=10, min_dose=0.25):
+    """
+    Splitting a non-zero dose (> 0.25Gy) into 2 doses.
+    population - next population, array [population_size, element_size].
+    """
+    population = np.asarray(population)
+    length = len(population[:, 1])
+    width = len(population[1, :])
     for i in range(length):
-        while True:
-            p = np.random.randint(0,width)
-            if NextGeneration[i,p] > min_dose:
-                k = NextGeneration[i,p] / min_dose
-                split = np.random.randint(0, k)
-                d1 = split * min_dose
-                d2 = NextGeneration[i,p] - d1
-                NextGeneration[i, p] = 0
-                while True:
-                    p = np.random.randint(0, width)
-                    if NextGeneration[i,p] + d1 < max_dose:
-                        NextGeneration[i,p] = NextGeneration[i,p] + d1
-                        break
-                while True:
-                    p = np.random.randint(0, width)
-                    if NextGeneration[i,p] + d2 < max_dose:
-                        NextGeneration[i,p] = NextGeneration[i,p] + d2
-                        break
-                break
-    return NextGeneration
+        if np.random.uniform() < config['mut_prob']:
+            while True:
+                p = np.random.randint(0, width)
+                if population[i, p] >= min_dose:
+                    k = population[i, p] / min_dose
+                    split = np.random.randint(0, k)
+                    d1 = split * min_dose
+                    d2 = population[i, p] - d1
+                    population[i, p] = 0
+                    while True:
+                        p = np.random.randint(0, width)
+                        if population[i, p] + d1 < max_dose:
+                            population[i, p] = population[i, p] + d1
+                            break
+                    while True:
+                        p = np.random.randint(0, width)
+                        if population[i, p] + d2 < max_dose:
+                            population[i, p] = population[i, p] + d2
+                            break
+                    break
+    return population
 
 
 def mutations(population, config):
@@ -137,15 +167,65 @@ def mutations(population, config):
     """
     mutation = {
         'mut_swap':         mutate_swap,
-        'mut_random':       mutate_random_change,
+        'mut_dose_value':   mutate_dose_value,
+        'mut_time_value':   mutate_time_value,
         'mutate_merge':     mutate_merge,
         'mutate_split':     mutate_split,
     }
 
     for mut_type in list(config.keys()):
         population = mutation[mut_type](population, config[mut_type])
+        print(mut_type, [sum(pop) for pop in population])
 
     return population
+
+
+# ==NORMALIZATION=======================================================================================================
+
+
+def round_dose(genome, min, step):
+    """
+    Metoda zaokrągla wartości dawek po normalizacji do 0.25Gy
+    :param genome:          list
+    :param min:             float
+    :param step:            float
+    :return: rounded_genome:list
+    """
+    inverse_step = int(1 / step)
+    round_to_step = lambda genome: [round(value * inverse_step) / inverse_step for value in genome]
+    rounded_genome = round_to_step(genome)
+    return rounded_genome
+
+
+def normalize(population, config):
+    """
+    Normalizacja wartości dawek po mutacjach. Mutacje mogą zmienić wartości dawek do wartości przekraczających ustalone
+    ograniczenia. Normalizacja polega na porownaniu obecnej łącznej dawki z wartoscią maksymalną i zmniejszeniu
+    poszczegolnych dawek proporcjonalnie do roznicy pomiedzy obiema wartosciami.
+
+    W domyślnej konfiguracji maksymalna łączna dawka może wynosić 10Gy. Minimalna dawka to 0.25Gy,
+    identycznie jak wartość o ktorą zwiekszamy dawkę.
+    :param population:      list
+    :oaram config:          dict
+    :return: population:     list
+    """
+    normalization_factor = [
+        np.clip(sum(genome) / config['normalization']['max_value'], 1, config['normalization']['max_value'])
+        for genome in population
+    ]
+
+    normalized_population = [
+        genome / normalization_factor[index]
+        for index, genome in enumerate(population)
+    ]
+
+    rounded_population = [
+        round_dose(genome=genome, min=config['normalization']['min_value'], step=config['normalization']['step_value'])
+        for genome in normalized_population
+    ]
+
+    return rounded_population
+
 
 # ======================================================================================================================
 # CREATE NEXT GENERATION
@@ -180,6 +260,20 @@ def gene_group_replacement(x1, x2, group):
     return new_x
 
 
+def normalize_crossover(genome):
+    step = 0.25
+    max_value = 10
+    while sum(genome) > max_value:
+        top_args_indices = np.array(genome).argsort()[-len(genome):][::-1]
+        for idx in top_args_indices:
+            if genome[idx] < step:
+                break
+            genome[idx] -= step
+            if sum(genome) <= max_value:
+                break
+    return genome
+
+
 def proximity_base_crossover(x1, x2):
     """
     Krzyżowanie oparte na bliskości skrzyżowań:
@@ -196,6 +290,9 @@ def proximity_base_crossover(x1, x2):
 
     new_x1 = gene_group_replacement(x1, x2, group)
     new_x2 = gene_group_replacement(x2, x1, group)
+
+    new_x1 = normalize_crossover(new_x1)
+    new_x2 = normalize_crossover(new_x2)
 
     return new_x1, new_x2
 
@@ -393,15 +490,19 @@ def new_genetic_algorithm(population, model, config):
     pop_fitness = calculate_fitenss(population, model)
 
     while n_generation <= config['max_iter'] and min(pop_fitness) > config['stop_fitness']:
-        # fitness
-        pop_fitness = calculate_fitenss(population, model)
-        metrics = collect_metrics(n_generation, pop_fitness, metrics)
 
         # nowe pokolenie
         population = next_generation(population, pop_fitness, config)
 
         # mutacje
         population = mutations(population, config['mutations'])
+
+        # normalizacja
+        population = normalize(population, config)
+
+        # fitness
+        pop_fitness = calculate_fitenss(population, model)
+        metrics = collect_metrics(n_generation, pop_fitness, metrics)
 
         n_generation += 1
 
