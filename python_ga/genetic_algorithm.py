@@ -89,7 +89,7 @@ def mutate_time_value(population, config):
             if p < config['mut_prob']:
                 if genome[gene_idx] > 0:
                     new_dose_time = np.random.randint(len(genome))
-                    genome[new_dose_time] = genome[gene_idx]
+                    genome[new_dose_time] = genome[new_dose_time] + genome[gene_idx]
                     genome[gene_idx] = 0
     return population
 
@@ -274,9 +274,9 @@ def gene_group_replacement(x1, x2, group):
     return new_x
 
 
-def normalize_crossover(genome):
-    step = 0.25
-    max_value = 10
+def normalize_crossover(genome, config):
+    step = config['step_value']
+    max_value = config['max_value']
     while sum(genome) > max_value:
         top_args_indices = np.array(genome).argsort()[-len(genome):][::-1]
         for idx in top_args_indices:
@@ -288,30 +288,29 @@ def normalize_crossover(genome):
     return genome
 
 
-def proximity_base_crossover(x1, x2):
+def normalized_crossover(x1, x2, config):
     """
-    Krzyżowanie oparte na bliskości skrzyżowań:
-    1. Sąsiadujące skrzyżowania są grupowane;
-    2. Dla każdego z dzieci wywoływana jest metoda przekazująca mu geny z wylosowanej grupy od jednego z rodziców
-    i pozostałe geny od drugiego z rodziców
+    Znormalizowane krzyżowanie 2 genów: wybieramy indeksu genów z x2, krzyżujemy z x1, oba powstałe genomy normalizujemy,
+    aby suma dawek nie przekroczyła limitu
     :param x1:                  list
     :param x2:                  list
     :return: new_x1, new_x1:    list, list
     """
-    g_index = np.random.randint(0, 4)
-
-    group = crossroads_grouping()[g_index]
+    group = []
+    for i in range(len(x1)):
+        if np.random.randint(0, 2) == 0:
+            group.append(i)
 
     new_x1 = gene_group_replacement(x1, x2, group)
     new_x2 = gene_group_replacement(x2, x1, group)
 
-    new_x1 = normalize_crossover(new_x1)
-    new_x2 = normalize_crossover(new_x2)
+    new_x1 = normalize_crossover(new_x1, config)
+    new_x2 = normalize_crossover(new_x2, config)
 
     return new_x1, new_x2
 
 
-def cross_two_points(x1, x2):
+def cross_two_points(x1, x2, config):
     """
     Krzyżowanie w dwóch punktach: W chromosomie dziecka wybierane są dwa punkty. Geny pomiędzy tymi punktami pochodzą
     od drugiego rodzica, a pozostałe od rodzica pierwszego. Sytuacja jest odwrotna w przypadku drugiego dziecka.
@@ -333,7 +332,7 @@ def cross_two_points(x1, x2):
     return new_x1, new_x2
 
 
-def cross_one_point(x1, x2):
+def cross_one_point(x1, x2, config):
     """
     Krzyżowanie w jednym punkcie: losowo wybierany jest jeden punkt w chromosomie dziecka. Wszystkie geny przed tym
     punktem pochodzą od pierwszego rodzica, a wszystkie geny za tym punktem pochodzą od rodzica drugiego. Sytuacja jest
@@ -353,7 +352,7 @@ def cross_one_point(x1, x2):
     return new_x1, new_x2
 
 
-def cross_uniform(x1, x2):
+def cross_uniform(x1, x2, config):
     """
     Krzyżowanie jednorodne: każdy gen w chromosomach dzieci ma 50% szans na pochodzenie od pierwszego z rodziców i 50%
     na pochodzenie od drugiego rodzica. Jeśli pierwsze dziecko otrzymało gen pierwszego rodzica, to drugie dziecko musi
@@ -397,7 +396,7 @@ def create_offspring(pop_size, selected_individuals, config):
     cross = {'cross_uniform':               cross_uniform,
              'cross_one_point':             cross_one_point,
              'cross_two_points':            cross_two_points,
-             'proximity_base_crossover':    proximity_base_crossover}
+             'normalized_crossover':        normalized_crossover}
     offspring_pairs = int((pop_size - len(selected_individuals)) / 2)
     new_population = [genome for genome in selected_individuals]
     parent_index = cycle(range(len(selected_individuals)))
@@ -409,7 +408,7 @@ def create_offspring(pop_size, selected_individuals, config):
         # Wybór losowy
         x1 = random.choice(selected_individuals)
         x2 = random.choice(selected_individuals)
-        new_x1, new_x2 = cross[config['cross_type']](x1, x2)
+        new_x1, new_x2 = cross[config['cross_type']](x1, x2, config)
         new_population.append(new_x1), new_population.append(new_x2)
 
     return new_population
