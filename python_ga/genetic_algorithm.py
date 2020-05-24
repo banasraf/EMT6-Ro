@@ -136,7 +136,7 @@ def mutate_merge(population, config, max_dose=10):
                         population[i, q] = population[i, p] + population[i, q]
                         population[i, p] = 0
                         break
-    return population
+    return population.tolist()
 
 
 def mutate_split(population, config, max_dose=10, min_dose=0.25):
@@ -168,7 +168,7 @@ def mutate_split(population, config, max_dose=10, min_dose=0.25):
                             population[i, p] = population[i, p] + d2
                             break
                     break
-    return population
+    return population.tolist()
 
 
 def mutations(population, config):
@@ -430,6 +430,39 @@ def simple_selection(population, pop_fitness, select_n):
     return [population[i] for i in best_index][:select_n]
 
 
+def tournament_selection(population, pop_fitness, select_n):
+    k = round(len(population) / select_n)
+    selected = []
+    for i in range(select_n):
+        idx_of_best = None
+        for j in range(k):
+            idx_of_candidate = np.random.randint(0, len(population))
+            if idx_of_best is None or pop_fitness[idx_of_candidate] < pop_fitness[idx_of_best]:
+                idx_of_best = idx_of_candidate
+        selected.append(population[idx_of_best])
+    return selected
+
+
+def roulette_selection(population, pop_fitness, select_n):
+    total_fitness = sum(pop_fitness)
+    probability_sum = 0
+    selected = []
+    wheel_probability_list = []
+
+    for i, fitness in enumerate(pop_fitness):
+        # (1 - p) from 1 to N = N - 1 -> (1 - p) / (N - 1)
+        probability_sum += (1 - (fitness / total_fitness)) / (len(population) - 1)
+        wheel_probability_list.append(probability_sum)
+
+    for i in range(select_n):
+        r = np.random.random()
+        for j, proba in enumerate(wheel_probability_list):
+            if r < proba:
+                selected.append(population[j])
+                break
+    return selected
+
+
 def round_select_n(select_n, pop_size):
     """
     Metoda odpowiada za obliczenie liczebności osobników, które zostaną wyselekcjonowane do krzyżowania i kolejnego
@@ -462,7 +495,11 @@ def next_generation(population, pop_fitness, config):
     """
     select_n = round_select_n(config['select_n'], len(population))
 
-    selection = {'simple_selection':    simple_selection}
+    selection = {
+        'simple_selection':         simple_selection,
+        'tournament_selection':     tournament_selection,
+        'roulette_selection':       roulette_selection,
+    }
     selected_individuals = selection[config['selection']['type']](population, pop_fitness, select_n)
 
     new_population = create_offspring(len(population), selected_individuals, config)
@@ -472,7 +509,7 @@ def next_generation(population, pop_fitness, config):
 # ======================================================================================================================
 
 
-def calculate_fitenss(population, model):
+def calculate_fitness(population, model):
     """
     Metoda odpowiada za obliczenie wartości funkcji dopasowania dla osobników w populacji, przy użyciu wybranego modelu.
     Otrzymany wynik przekształcany jest do tablicy jednowymiarowej.
@@ -500,7 +537,7 @@ def new_genetic_algorithm(population, model, config):
 
     metrics = pd.DataFrame(columns=['generation', 'best_fit', 'avg_fit'])
 
-    pop_fitness = calculate_fitenss(population, model)
+    pop_fitness = calculate_fitness(population, model)
 
     while n_generation <= config['max_iter'] and min(pop_fitness) > config['stop_fitness']:
 
@@ -510,11 +547,8 @@ def new_genetic_algorithm(population, model, config):
         # mutacje
         population = mutations(population, config['mutations'])
 
-        # normalizacja
-        population = normalize(population, config)
-
         # fitness
-        pop_fitness = calculate_fitenss(population, model)
+        pop_fitness = calculate_fitness(population, model)
         metrics = collect_metrics(n_generation, pop_fitness, metrics)
 
         n_generation += 1
