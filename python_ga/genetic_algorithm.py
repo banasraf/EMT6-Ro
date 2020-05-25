@@ -431,6 +431,17 @@ def simple_selection(population, pop_fitness, select_n):
 
 
 def tournament_selection(population, pop_fitness, select_n):
+    """
+    Metoda selekcji tournament
+    1. Wyznaczamy k ilość kandydatów na osobnika
+    2. Porównujemy dopasowanie kandydatów z najlepszym osobnikiem
+    2. Wybieramy najlepszego osobnika
+    3. Powtarzamy aż uzyskania select_n osobników
+    :param population:  list
+    :param pop_fitness: list
+    :param select_n:    int
+    :return: list
+    """
     k = round(len(population) / select_n)
     selected = []
     for i in range(select_n):
@@ -444,13 +455,23 @@ def tournament_selection(population, pop_fitness, select_n):
 
 
 def roulette_selection(population, pop_fitness, select_n):
+    """
+    Metoda selekcji ruletki
+    1. Obliczamy sumaryczną wartość funkcji dopasowania osobników w populacji
+    2. Wyznaczamy prawdopodobieństwo wyboru osobnika przez odwrotność funkcji dopasowania: (1 - p) / (N - 1)
+    3. Obliczamy listę będącą sumą skumulowaną prawdopodobieństw wyboru wszystkich osobników
+    4. Losujemy select_n osobników używając listy z prawdopodobieństwami.
+    :param population:  list
+    :param pop_fitness: list
+    :param select_n:    int
+    :return: list
+    """
     total_fitness = sum(pop_fitness)
     probability_sum = 0
     selected = []
     wheel_probability_list = []
 
     for i, fitness in enumerate(pop_fitness):
-        # (1 - p) from 1 to N = N - 1 -> (1 - p) / (N - 1)
         probability_sum += (1 - (fitness / total_fitness)) / (len(population) - 1)
         wheel_probability_list.append(probability_sum)
 
