@@ -40,6 +40,8 @@ sample_protocols = [
     [(hour_steps * 12, 2), (hour_steps * 36, 2.25)],
     [(hour_steps * 6, 1), (hour_steps * 18, 1), (hour_steps * 30, 2.25)],
     [(hour_steps * 36, 2), (hour_steps * 54, 2.25)],
+    [(hour_steps * 6, 1), (hour_steps * 18, 1), (hour_steps * 30, 8)],
+    [(hour_steps * 36, 4), (hour_steps * 54, 6)],
 ]
 
 
@@ -56,8 +58,11 @@ pair_protocols = np.asarray([
 
 
 config = {
-    'cross_type': 'proximity_base_crossover',
-    'selection': {'type': 'simple_selection'},
+    'cross_type': 'normalized_crossover',
+    # 'selection': {'type': 'simple_selection'},
+    'selection': {'type': 'tournament_selection'},
+    # 'selection': {'type': 'roulette_selection'},
+
     'mutations': {
         'mut_swap': {'mut_prob': 0.03},
         'mut_dose_value': {'mut_prob': 0.05, 'min_value': 0.25, 'max_value': 10, 'step_value': 0.25},
@@ -65,6 +70,8 @@ config = {
         'mutate_merge': {'mut_prob': 0.05},
         'mutate_split': {'mut_prob': 0.05},
     },
+    'step_value': 0.25,
+    'max_value': 10,
     'select_n': 0.5,
     'max_iter': 100,
     'stop_fitness': -0.5,
