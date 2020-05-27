@@ -1,7 +1,6 @@
 import numpy as np
 
-from utils import get_rand_population
-from utils import ConvertRepresentation
+from utils import ConvertRepresentation, get_rand_population, ModelWrapper
 from genetic_algorithm import new_genetic_algorithm
 
 # from emt6ro.simulation import load_state, load_parameters
@@ -10,14 +9,14 @@ from genetic_algorithm import new_genetic_algorithm
 
 class MockPredictionModel:
     def predict(self, x):
-        return np.asarray([[np.random.random()] for i in range(len(x))])
+        return np.random.rand(len(x))
 
 
 # params = load_parameters("data/default-parameters.json")
 # tumors = [load_state("data/tumor-lib/tumor-{}.txt".format(i), params) for i in range(1, 11)]
 
-# num_gpus = 2
-# num_protocols = 2
+# num_gpus = 1
+# num_protocols = 10
 # num_tests = 20
 # model = EMT6RoModel(params, tumors, num_protocols, num_tests, num_gpus)
 
@@ -80,4 +79,4 @@ config = {
 
 
 # population = get_rand_population(8)
-new_genetic_algorithm(list_protocols, model, config)
+new_genetic_algorithm(list_protocols, ModelWrapper(model, converter), config)

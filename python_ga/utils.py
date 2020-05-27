@@ -30,3 +30,12 @@ class ConvertRepresentation:
             for index in indices
         ]
         return pair_protocol
+
+class ModelWrapper:
+    def __init__(self, model, converter):
+        self.model = model
+        self.converter = converter
+    
+    def predict(self, population):
+        converted = [self.converter.convert_list_to_pairs(p) for p in population]
+        return self.model.predict(converted)
