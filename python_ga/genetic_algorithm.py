@@ -459,7 +459,7 @@ def tournament_selection(population, pop_fitness, select_n, config):
         if np.random.random() < selection_probability:
             selected.append(population[idx_of_best])
         else:
-            selected.append(roulette_selection(population, pop_fitness, 1)[0])
+            selected.append(roulette_selection(population, pop_fitness, 1, config)[0])
     return selected
 
 
