@@ -416,7 +416,7 @@ def create_offspring(pop_size, selected_individuals, config):
 # ==SELECTION===========================================================================================================
 
 
-def simple_selection(population, pop_fitness, select_n, **kwargs):
+def simple_selection(population, pop_fitness, select_n, config):
     """
     Metoda selekcji prostej:
     1. Indeksy osobników w populacji są sortowane rosnąco względem ich wyników w pop_fitness;
@@ -424,13 +424,14 @@ def simple_selection(population, pop_fitness, select_n, **kwargs):
     :param population:  list
     :param pop_fitness: list
     :param select_n:    int
+    :param config:      dict
     :return: list
     """
     best_index = np.argsort(pop_fitness)
     return [population[i] for i in best_index][:select_n]
 
 
-def tournament_selection(population, pop_fitness, select_n, **kwargs):
+def tournament_selection(population, pop_fitness, select_n, config):
     """
     Metoda selekcji tournament
     1. Wyznaczamy k ilość kandydatów na osobnika
@@ -441,9 +442,10 @@ def tournament_selection(population, pop_fitness, select_n, **kwargs):
     :param population:  list
     :param pop_fitness: list
     :param select_n:    int
+    :param config:      dict
     :return: list
     """
-    probability = kwargs['probability']
+    probability = config['probability']
 
     k = round(len(population) / select_n)
     selected = []
@@ -461,7 +463,7 @@ def tournament_selection(population, pop_fitness, select_n, **kwargs):
     return selected
 
 
-def roulette_selection(population, pop_fitness, select_n, **kwargs):
+def roulette_selection(population, pop_fitness, select_n, config):
     """
     Metoda selekcji ruletki
     Minimalizujemy wartośc funkcji dopasowania, co jest podejściem odwrotnym do standardowego. By moc poprawnie
@@ -480,6 +482,7 @@ def roulette_selection(population, pop_fitness, select_n, **kwargs):
     :param population:  list
     :param pop_fitness: list
     :param select_n:    int
+    :param config:      dict
     :return: list
     """
     selected = []
@@ -539,7 +542,7 @@ def next_generation(population, pop_fitness, config):
         'roulette_selection':       roulette_selection,
     }
     selected_individuals = selection[config['selection']['type']](
-        population, pop_fitness, select_n, probability=config['selection']['probability'])
+        population, pop_fitness, select_n, config['selection'])
 
     new_population = create_offspring(len(population), selected_individuals, config)
 
