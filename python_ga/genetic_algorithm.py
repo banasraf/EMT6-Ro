@@ -416,7 +416,7 @@ def create_offspring(pop_size, selected_individuals, config):
 # ==SELECTION===========================================================================================================
 
 
-def simple_selection(population, pop_fitness, select_n):
+def simple_selection(population, pop_fitness, select_n, config):
     """
     Metoda selekcji prostej:
     1. Indeksy osobników w populacji są sortowane rosnąco względem ich wyników w pop_fitness;
@@ -424,56 +424,76 @@ def simple_selection(population, pop_fitness, select_n):
     :param population:  list
     :param pop_fitness: list
     :param select_n:    int
+    :param config:      dict
     :return: list
     """
     best_index = np.argsort(pop_fitness)
     return [population[i] for i in best_index][:select_n]
 
 
-def tournament_selection(population, pop_fitness, select_n):
+def tournament_selection(population, pop_fitness, select_n, config):
     """
     Metoda selekcji tournament
     1. Wyznaczamy k ilość kandydatów na osobnika
     2. Porównujemy dopasowanie kandydatów z najlepszym osobnikiem
-    2. Wybieramy najlepszego osobnika
-    3. Powtarzamy aż uzyskania select_n osobników
+    3. Wybieramy najlepszego osobnika z prawdopodobienstwem p, a z prawdopodobienstwem 1 - p uruchamiamy metodę selekcji
+    ruletki do wyboru pojedynczego osobnika
+    4. Powtarzamy aż uzyskania select_n osobników z prawdopodobienstwami p*(1-p), p*(1-p)^2...
     :param population:  list
     :param pop_fitness: list
     :param select_n:    int
+    :param config:      dict
     :return: list
     """
+    probability = config['probability']
+
     k = round(len(population) / select_n)
     selected = []
     for i in range(select_n):
+        selection_probability = probability * (1 - probability) ** i
         idx_of_best = None
         for j in range(k):
             idx_of_candidate = np.random.randint(0, len(population))
             if idx_of_best is None or pop_fitness[idx_of_candidate] < pop_fitness[idx_of_best]:
                 idx_of_best = idx_of_candidate
-        selected.append(population[idx_of_best])
+        if np.random.random() < selection_probability:
+            selected.append(population[idx_of_best])
+        else:
+            selected.append(roulette_selection(population, pop_fitness, 1, config)[0])
     return selected
 
 
-def roulette_selection(population, pop_fitness, select_n):
+def roulette_selection(population, pop_fitness, select_n, config):
     """
     Metoda selekcji ruletki
-    1. Obliczamy sumaryczną wartość funkcji dopasowania osobników w populacji
-    2. Wyznaczamy prawdopodobieństwo wyboru osobnika przez odwrotność funkcji dopasowania: (1 - p) / (N - 1)
-    3. Obliczamy listę będącą sumą skumulowaną prawdopodobieństw wyboru wszystkich osobników
-    4. Losujemy select_n osobników używając listy z prawdopodobieństwami.
+    Minimalizujemy wartośc funkcji dopasowania, co jest podejściem odwrotnym do standardowego. By moc poprawnie
+    zastosowac algorytm selekcji ruletki wykorzystujemy odwrocone wartosci funkcji.
+    W celu rozproszenia kandydatow do selekcji, obliczamy rozstęp wartości do znormalizowania wartosci dopasowania.
+    Pozwala to na lepszy wybor kandydatow, kiedy wartosci funkcji dopasowania osobnikow są duże ale ich wariancje małe
+
+    1. Odwracamy wartosci funkcji dopasowania otrzymując 'inversed_fitness'
+    2. Obliczamy 'fitness_dispersion' rozstęp wartość funkcji dopasowania osobników w populacji
+    3. Obliczamy 'fitness_dispersion_ratio' stosunek wartości rozstępu do średniej wartości funkcji dopasowania
+    4. Wyznaczamy znormalizowane wartosci funkcji dopasowania osobnikow 'dispersed_fitness' poprzez odjęcie od nich
+    wartości najgorszego osobnika, pomnozonego przez 1 - 'fitness_dispersion_ratio'
+    5. Obliczamy listę 'wheel_probability_list' będącą sumą skumulowaną 'dispersed_fitness' wszystkich osobników
+    6. Losujemy 'select_n' osobników używając listy 'wheel_probability_list'.
+
     :param population:  list
     :param pop_fitness: list
     :param select_n:    int
+    :param config:      dict
     :return: list
     """
-    total_fitness = sum(pop_fitness)
-    probability_sum = 0
     selected = []
-    wheel_probability_list = []
 
-    for i, fitness in enumerate(pop_fitness):
-        probability_sum += (1 - (fitness / total_fitness)) / (len(population) - 1)
-        wheel_probability_list.append(probability_sum)
+    inversed_fitness = max(pop_fitness) + min(pop_fitness) - pop_fitness
+
+    fitness_dispersion = max(inversed_fitness) - min(inversed_fitness)
+    fitness_dispersion_ratio = fitness_dispersion / np.mean(inversed_fitness)
+    dispersed_fitness = inversed_fitness - min(inversed_fitness) * (1 - fitness_dispersion_ratio)
+
+    wheel_probability_list = np.cumsum(dispersed_fitness) / sum(dispersed_fitness)
 
     for i in range(select_n):
         r = np.random.random()
@@ -521,7 +541,8 @@ def next_generation(population, pop_fitness, config):
         'tournament_selection':     tournament_selection,
         'roulette_selection':       roulette_selection,
     }
-    selected_individuals = selection[config['selection']['type']](population, pop_fitness, select_n)
+    selected_individuals = selection[config['selection']['type']](
+        population, pop_fitness, select_n, config['selection'])
 
     new_population = create_offspring(len(population), selected_individuals, config)
 
