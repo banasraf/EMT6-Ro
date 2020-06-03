@@ -431,9 +431,49 @@ def simple_selection(population, pop_fitness, select_n, config):
     return [population[i] for i in best_index][:select_n]
 
 
-def tournament_selection(population, pop_fitness, select_n, config):
+def tournament_selection_classic(population, pop_fitness, select_n, config):
     """
-    Metoda selekcji tournament
+    Metoda selekcji tournament - klasyczna
+    1. Wybieramy len(population / select_n) osobników
+    2. Porównujemy dopasowanie len(population / select_n) osobników
+    3. Wybieramy pojedynczego osobnika, gdzie prawdopobienstwa wybori wynoszą p dla najlepszego osobnika, p(1 - p)
+     dla drugiego, p(1 - p)^2 dla trzeciego... wykorzystując roulette_selection bez rozpraszania osobników
+    4. Powtarzamy aż uzyskania select_n wybranych osobników.
+    :param population:  list
+    :param pop_fitness: list
+    :param select_n:    int
+    :param config:      dict
+    :return: list
+    """
+    def sort_candidates():
+        descending_sorted_candidates_indices = np.argsort(pop_fitness[candidates_indices])[::-1]
+        return [
+            population[i]
+            for i in descending_sorted_candidates_indices
+        ]
+
+    probability = config['probability']
+    config_for_roulette = config.copy()
+    config_for_roulette['candidates_dispersion'] = False
+
+    selected = []
+    for i in range(select_n):
+        candidates_indices = []
+        candidates_probabilities = []
+        for j in range(round(len(population) / select_n)):
+            candidates_indices.append(np.random.randint(0, len(population)))
+            candidates_probabilities.append(probability * (1 - probability) ** j)
+
+        sorted_candidates = sort_candidates()
+
+        selected_candidate = roulette_selection(sorted_candidates, candidates_probabilities, 1, config_for_roulette)[0]
+        selected.append(selected_candidate)
+    return selected
+
+
+def tournament_selection_tuned(population, pop_fitness, select_n, config):
+    """
+    Metoda selekcji tournament - zmodyfikowana
     1. Wyznaczamy k ilość kandydatów na osobnika
     2. Porównujemy dopasowanie kandydatów z najlepszym osobnikiem
     3. Wybieramy najlepszego osobnika z prawdopodobienstwem p, a z prawdopodobienstwem 1 - p uruchamiamy metodę selekcji
@@ -487,13 +527,13 @@ def roulette_selection(population, pop_fitness, select_n, config):
     """
     selected = []
 
-    inversed_fitness = max(pop_fitness) + min(pop_fitness) - pop_fitness
-
-    fitness_dispersion = max(inversed_fitness) - min(inversed_fitness)
-    fitness_dispersion_ratio = fitness_dispersion / np.mean(inversed_fitness)
-    dispersed_fitness = inversed_fitness - min(inversed_fitness) * (1 - fitness_dispersion_ratio)
-
-    wheel_probability_list = np.cumsum(dispersed_fitness) / sum(dispersed_fitness)
+    if 'candidates_dispersion' in config and config['candidates_dispersion']:
+        fitness_dispersion = max(pop_fitness) - min(pop_fitness)
+        fitness_dispersion_ratio = fitness_dispersion / np.mean(pop_fitness)
+        fitness = pop_fitness - min(pop_fitness) * (1 - fitness_dispersion_ratio)
+    else:
+        fitness = pop_fitness
+    wheel_probability_list = np.cumsum(fitness) / sum(fitness)
 
     for i in range(select_n):
         r = np.random.random()
@@ -537,9 +577,10 @@ def next_generation(population, pop_fitness, config):
     select_n = round_select_n(config['select_n'], len(population))
 
     selection = {
-        'simple_selection':         simple_selection,
-        'tournament_selection':     tournament_selection,
-        'roulette_selection':       roulette_selection,
+        'simple_selection':                 simple_selection,
+        'tournament_selection_classic':     tournament_selection_classic,
+        'tournament_selection_tuned':       tournament_selection_tuned,
+        'roulette_selection':               roulette_selection,
     }
     selected_individuals = selection[config['selection']['type']](
         population, pop_fitness, select_n, config['selection'])
