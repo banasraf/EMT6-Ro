@@ -32,7 +32,7 @@ def show_metrics(metrics, pop_fitness, population):
     :param population:
     :return:
     """
-    fit_idx = np.argsort(pop_fitness)
+    fit_idx = np.argsort(pop_fitness)[::-1]
     best_fit = population[fit_idx[0]]
 
     plt.plot(metrics['generation'], metrics['best_fit'])
@@ -427,7 +427,7 @@ def simple_selection(population, pop_fitness, select_n, config):
     :param config:      dict
     :return: list
     """
-    best_index = np.argsort(pop_fitness)
+    best_index = np.argsort(pop_fitness)[::-1]
     return [population[i] for i in best_index][:select_n]
 
 
@@ -494,7 +494,7 @@ def tournament_selection_tuned(population, pop_fitness, select_n, config):
         idx_of_best = None
         for j in range(k):
             idx_of_candidate = np.random.randint(0, len(population))
-            if idx_of_best is None or pop_fitness[idx_of_candidate] < pop_fitness[idx_of_best]:
+            if idx_of_best is None or pop_fitness[idx_of_candidate] > pop_fitness[idx_of_best]:
                 idx_of_best = idx_of_candidate
         if np.random.random() < selection_probability:
             selected.append(population[idx_of_best])
