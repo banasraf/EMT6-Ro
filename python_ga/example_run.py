@@ -59,8 +59,9 @@ pair_protocols = np.asarray([
 config = {
     'cross_type': 'normalized_crossover',
     # 'selection': {'type': 'simple_selection'},
-    'selection': {'type': 'tournament_selection', 'probability': 0.9},
-    # 'selection': {'type': 'roulette_selection'},
+    'selection': {'type': 'tournament_selection_classic', 'probability': 0.9},
+    # 'selection': {'type': 'tournament_selection_tuned', 'probability': 0.9},
+    # 'selection': {'type': 'roulette_selection', 'candidates_dispersion': True},
 
     'mutations': {
         'mut_swap': {'mut_prob': 0.03},
