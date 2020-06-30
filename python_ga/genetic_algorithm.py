@@ -1,9 +1,16 @@
+import logging
 import random
-from itertools import cycle
 
+import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
-import matplotlib.pyplot as plt
+
+from itertools import cycle
+
+
+logging.basicConfig(
+    format="%(asctime)s [%(levelname)s] | %(name)s | %(funcName)s: %(message)s", level=logging.INFO, datefmt='%I:%M:%S')
+logger = logging.getLogger()
 
 
 # ======================================================================================================================
@@ -40,8 +47,8 @@ def show_metrics(metrics, pop_fitness, population):
     plt.ylabel('Fitness')
     plt.show()
 
-    print('best result: ', min(pop_fitness))
-    print('best individual: ', best_fit)
+    logger.info('best result: ', min(pop_fitness))
+    logger.info('best individual: ', best_fit)
 
 # ======================================================================================================================
 # MUTATIONS
@@ -188,57 +195,10 @@ def mutations(population, config):
     }
 
     for mut_type in list(config.keys()):
-        population = mutation[mut_type](population, config[mut_type])
-        print(mut_type, [sum(pop) for pop in population])
+        population = mutation[mut_type](population=population, config=config[mut_type])
+        logger.info(f'{mut_type} {[sum(pop) for pop in population]}')
 
     return population
-
-
-# ==NORMALIZATION=======================================================================================================
-
-
-def round_dose(genome, min, step):
-    """
-    Metoda zaokrągla wartości dawek po normalizacji do 0.25Gy
-    :param genome:          list
-    :param min:             float
-    :param step:            float
-    :return: rounded_genome:list
-    """
-    inverse_step = int(1 / step)
-    round_to_step = lambda genome: [round(value * inverse_step) / inverse_step for value in genome]
-    rounded_genome = round_to_step(genome)
-    return rounded_genome
-
-
-def normalize(population, config):
-    """
-    Normalizacja wartości dawek po mutacjach. Mutacje mogą zmienić wartości dawek do wartości przekraczających ustalone
-    ograniczenia. Normalizacja polega na porownaniu obecnej łącznej dawki z wartoscią maksymalną i zmniejszeniu
-    poszczegolnych dawek proporcjonalnie do roznicy pomiedzy obiema wartosciami.
-
-    W domyślnej konfiguracji maksymalna łączna dawka może wynosić 10Gy. Minimalna dawka to 0.25Gy,
-    identycznie jak wartość o ktorą zwiekszamy dawkę.
-    :param population:      list
-    :oaram config:          dict
-    :return: population:     list
-    """
-    normalization_factor = [
-        np.clip(sum(genome) / config['normalization']['max_value'], 1, config['normalization']['max_value'])
-        for genome in population
-    ]
-
-    normalized_population = [
-        genome / normalization_factor[index]
-        for index, genome in enumerate(population)
-    ]
-
-    rounded_population = [
-        round_dose(genome=genome, min=config['normalization']['min_value'], step=config['normalization']['step_value'])
-        for genome in normalized_population
-    ]
-
-    return rounded_population
 
 
 # ======================================================================================================================
@@ -574,7 +534,7 @@ def next_generation(population, pop_fitness, config):
     :param config:              dict
     :return: new_population:    list
     """
-    select_n = round_select_n(config['select_n'], len(population))
+    select_n = round_select_n(select_n=config['select_n'], pop_size=len(population))
 
     selection = {
         'simple_selection':                 simple_selection,
@@ -583,29 +543,44 @@ def next_generation(population, pop_fitness, config):
         'roulette_selection':               roulette_selection,
     }
     selected_individuals = selection[config['selection']['type']](
-        population, pop_fitness, select_n, config['selection'])
-
-    new_population = create_offspring(len(population), selected_individuals, config)
+        population=population,
+        pop_fitness=pop_fitness,
+        select_n=select_n,
+        config=config['selection'],
+    )
+    new_population = create_offspring(
+        pop_size=len(population),
+        selected_individuals=selected_individuals,
+        config=config,
+    )
 
     return new_population
 
 # ======================================================================================================================
 
 
-def calculate_fitness(population, model):
+def calculate_fitness(population, model, converter):
     """
     Metoda odpowiada za obliczenie wartości funkcji dopasowania dla osobników w populacji, przy użyciu wybranego modelu.
     Otrzymany wynik przekształcany jest do tablicy jednowymiarowej.
     :param population:      list
     :param model:           fitness model
-    :return: pop_fitenss:   list
+    :param converter:       representation converter
+    :return: pop_fitness:   list
     """
-    pop_fitenss = model.predict(population)
-    pop_fitenss = pop_fitenss.reshape(len(population))
-    return pop_fitenss
+    paired_population = [
+        converter.convert_list_to_pairs(protocol=protocol)
+        for protocol in population
+    ]
+
+    logger.info(f'Type checker: population type {type(paired_population)}, protocol type {type(paired_population[0])}')
+
+    pop_fitness = model.predict(paired_population)
+    pop_fitness = pop_fitness.reshape(len(population))
+    return pop_fitness
 
 
-def new_genetic_algorithm(population, model, config):
+def new_genetic_algorithm(population, model, config, converter):
     """
     Główna metoda algorytmu - zawiera pętlę, która dla każdego pokolenia:
     1. blicza wartość fitness osobników w populacji;
@@ -614,28 +589,28 @@ def new_genetic_algorithm(population, model, config):
     :param population:  list
     :param model:       fitness model
     :param config:      dict
-    :return:
+    :param converter:   representation converter
     """
     n_generation = 0
 
     metrics = pd.DataFrame(columns=['generation', 'best_fit', 'avg_fit'])
 
-    pop_fitness = calculate_fitness(population, model)
+    pop_fitness = calculate_fitness(population=population, model=model, converter=converter)
 
     while n_generation <= config['max_iter'] and min(pop_fitness) > config['stop_fitness']:
 
         # nowe pokolenie
-        population = next_generation(population, pop_fitness, config)
+        population = next_generation(population=population, pop_fitness=pop_fitness, config=config)
 
         # mutacje
-        population = mutations(population, config['mutations'])
+        population = mutations(population=population, config=config['mutations'])
 
         # fitness
-        pop_fitness = calculate_fitness(population, model)
-        metrics = collect_metrics(n_generation, pop_fitness, metrics)
+        pop_fitness = calculate_fitness(population=population, model=model, converter=converter)
+        metrics = collect_metrics(n_generation=n_generation, pop_fitness=pop_fitness, metrics=metrics)
 
         n_generation += 1
 
-        print('Generation: ', n_generation, '| Best fitt: ', min(pop_fitness))
+        logger.info(f'Generation: {n_generation} | Best fit: {min(pop_fitness)}')
 
     show_metrics(metrics, pop_fitness, population)
