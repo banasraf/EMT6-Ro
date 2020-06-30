@@ -24,18 +24,19 @@ class ConvertRepresentation:
         return list_protocol
 
     def convert_list_to_pairs(self, protocol):
-        indices = np.where(protocol != 0)[0]
+        non_zero_indices = [i for i, value in enumerate(protocol) if value != 0]
         pair_protocol = [
-            (index * self.protocol_resolution, protocol[index])
-            for index in indices
+            tuple((index * self.protocol_resolution, protocol[index]))
+            for index in non_zero_indices
         ]
         return pair_protocol
+
 
 class ModelWrapper:
     def __init__(self, model, converter):
         self.model = model
         self.converter = converter
-    
+
     def predict(self, population):
         converted = [self.converter.convert_list_to_pairs(p) for p in population]
         return self.model.predict(converted)

@@ -27,7 +27,7 @@ model = MockPredictionModel()
 converter = ConvertRepresentation(hour_steps=hour_steps, protocol_resolution=protocol_resolution)
 
 
-sample_protocols = [
+pair_protocols = [
     # Initial
     [(hour_steps * 12, 1.25), (hour_steps * 36, 3.0)],
     [(hour_steps * 12, 1.25), (hour_steps * 24, 1.5), (hour_steps * 36, 1.5)],
@@ -44,16 +44,10 @@ sample_protocols = [
 ]
 
 
-list_protocols = np.asarray([
+list_protocols = [
     converter.convert_pairs_to_list(protocol=protocol)
-    for protocol in sample_protocols
-])
-
-
-pair_protocols = np.asarray([
-    converter.convert_list_to_pairs(protocol=protocol)
-    for protocol in list_protocols
-])
+    for protocol in pair_protocols
+]
 
 
 config = {
@@ -80,4 +74,4 @@ config = {
 
 
 # population = get_rand_population(8)
-new_genetic_algorithm(list_protocols, ModelWrapper(model, converter), config)
+new_genetic_algorithm(population=list_protocols, model=ModelWrapper(model, converter), config=config, converter=converter)
