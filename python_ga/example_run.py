@@ -3,8 +3,8 @@ import numpy as np
 from utils import ConvertRepresentation, get_rand_population, ModelWrapper
 from genetic_algorithm import new_genetic_algorithm
 
-# from emt6ro.simulation import load_state, load_parameters
-# from emt6ro.ga_model import EMT6RoModel
+from emt6ro.simulation import load_state, load_parameters
+from emt6ro.ga_model import EMT6RoModel
 
 
 class MockPredictionModel:
@@ -12,18 +12,18 @@ class MockPredictionModel:
         return np.random.rand(len(x))
 
 
-# params = load_parameters("data/default-parameters.json")
-# tumors = [load_state("data/tumor-lib/tumor-{}.txt".format(i), params) for i in range(1, 11)]
+params = load_parameters("data/default-parameters.json")
+tumors = [load_state("data/tumor-lib/tumor-{}.txt".format(i), params) for i in range(1, 11)]
 
-# num_gpus = 1
-# num_protocols = 10
-# num_tests = 20
-# model = EMT6RoModel(params, tumors, num_protocols, num_tests, num_gpus)
+num_gpus = 4
+num_protocols = 10
+num_tests = 25
+model_emt = EMT6RoModel(params, tumors, num_protocols, num_tests, num_gpus)
 
 
 hour_steps = 600
 protocol_resolution = 300
-model = MockPredictionModel()
+#model = MockPredictionModel()
 converter = ConvertRepresentation(hour_steps=hour_steps, protocol_resolution=protocol_resolution)
 
 
@@ -58,11 +58,11 @@ config = {
     # 'selection': {'type': 'roulette_selection', 'candidates_dispersion': True},
 
     'mutations': {
-        'mut_swap': {'mut_prob': 0.03},
-        'mut_dose_value': {'mut_prob': 0.05, 'min_value': 0.25, 'max_value': 10, 'step_value': 0.25},
-        'mut_time_value': {'mut_prob': 0.05},
-        'mutate_merge': {'mut_prob': 0.05},
-        'mutate_split': {'mut_prob': 0.05},
+    #    'mut_swap': {'mut_prob': 0.03},
+    #    'mut_dose_value': {'mut_prob': 0.05, 'min_value': 0.25, 'max_value': 10, 'step_value': 0.25},
+    #    'mut_time_value': {'mut_prob': 0.05},
+    #    'mutate_merge': {'mut_prob': 0.05},
+    #    'mutate_split': {'mut_prob': 0.05},
     },
     'step_value': 0.25,
     'max_value': 10,
@@ -74,4 +74,4 @@ config = {
 
 
 # population = get_rand_population(8)
-new_genetic_algorithm(population=list_protocols, model=ModelWrapper(model, converter), config=config, converter=converter)
+new_genetic_algorithm(population=list_protocols, model=model_emt, config=config, converter=converter)

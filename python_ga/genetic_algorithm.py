@@ -47,8 +47,8 @@ def show_metrics(metrics, pop_fitness, population):
     plt.ylabel('Fitness')
     plt.show()
 
-    logger.info('best result: ', min(pop_fitness))
-    logger.info('best individual: ', best_fit)
+    logger.info('best result: %s', min(pop_fitness))
+    logger.info('best individual: %s', best_fit)
 
 # ======================================================================================================================
 # MUTATIONS
@@ -595,7 +595,9 @@ def new_genetic_algorithm(population, model, config, converter):
 
     metrics = pd.DataFrame(columns=['generation', 'best_fit', 'avg_fit'])
 
+    print("Assert1")
     pop_fitness = calculate_fitness(population=population, model=model, converter=converter)
+    print("Assert2")
 
     while n_generation <= config['max_iter'] and min(pop_fitness) > config['stop_fitness']:
 
@@ -610,6 +612,11 @@ def new_genetic_algorithm(population, model, config, converter):
         metrics = collect_metrics(n_generation=n_generation, pop_fitness=pop_fitness, metrics=metrics)
 
         n_generation += 1
+
+        minimum = min(pop_fitness)
+
+        print('Generation: ', n_generation, '| Best fitt: ', minimum, ' for a protocol: ', population[np.argmin(pop_fitness)])
+
 
         logger.info(f'Generation: {n_generation} | Best fit: {min(pop_fitness)}')
 
