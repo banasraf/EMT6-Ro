@@ -55,20 +55,21 @@ config = {
     # 'selection': {'type': 'simple_selection'},
     'selection': {'type': 'tournament_selection_classic', 'probability': 0.9},
     # 'selection': {'type': 'tournament_selection_tuned', 'probability': 0.9},
-    # 'selection': {'type': 'roulette_selection', 'candidates_dispersion': True},
+    # 'selection': {'type': 'roulette_selection', 'candidates_dispersion': False},
+    # Please set the candidates_dispersion = False for now, to reduce number of potential issues
 
     'mutations': {
-    #    'mut_swap': {'mut_prob': 0.03},
-    #    'mut_dose_value': {'mut_prob': 0.05, 'min_value': 0.25, 'max_value': 10, 'step_value': 0.25},
-    #    'mut_time_value': {'mut_prob': 0.05},
-    #    'mutate_merge': {'mut_prob': 0.05},
-    #    'mutate_split': {'mut_prob': 0.05},
+        # 'mut_swap': {'mut_prob': 0.03},
+        # 'mut_dose_value': {'mut_prob': 0.05, 'min_value': 0.25, 'max_value': 10, 'step_value': 0.25},
+        # 'mut_time_value': {'mut_prob': 0.05},
+        # 'mutate_merge': {'mut_prob': 0.05},
+        # 'mutate_split': {'mut_prob': 0.05},
     },
     'step_value': 0.25,
     'max_value': 10,
     'select_n': 0.5,
     'max_iter': 100,
-    'stop_fitness': -0.5,
+    'stop_fitness': 1e6,
     'normalization': {'min_value': 0.25, 'max_value': 10, 'step_value': 0.25},
 }
 

@@ -1,4 +1,5 @@
 import numpy as np
+import os
 
 
 def get_rand_population(population_size=120):
@@ -40,3 +41,17 @@ class ModelWrapper:
     def predict(self, population):
         converted = [self.converter.convert_list_to_pairs(p) for p in population]
         return self.model.predict(converted)
+
+
+def save_output(file: any, file_name: str, path: str = 'results', extension: str = 'csv'):
+    saving_directory = os.path.join(os.getcwd(), f'python_ga/{path}')
+    saving_path = f'{saving_directory}/{file_name}.{extension}'
+
+    if not os.path.exists(saving_directory):
+        os.makedirs(saving_directory)
+
+    if extension == 'csv':
+        file.to_csv(saving_path, index=False)
+    else:
+        with open(saving_path, 'w') as f:
+            f.write(str(file))
