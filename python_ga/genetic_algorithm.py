@@ -5,8 +5,10 @@ import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 
+from datetime import datetime
 from itertools import cycle
 
+from utils import save_output
 
 logging.basicConfig(
     format="%(asctime)s [%(levelname)s] | %(name)s | %(funcName)s: %(message)s", level=logging.INFO, datefmt='%I:%M:%S')
@@ -25,7 +27,7 @@ def collect_metrics(n_generation, pop_fitness, metrics):
     :param metrics: current metrics to which we append new metrics
     :return: metrics with added new metrics for the new population
     """
-    best_fit = min(pop_fitness)
+    best_fit = max(pop_fitness)
     avg_fit = np.mean(pop_fitness)
     data = pd.DataFrame([[n_generation, best_fit, avg_fit]], columns=['generation', 'best_fit', 'avg_fit'])
     return metrics.append(data, ignore_index=True)
@@ -34,9 +36,9 @@ def collect_metrics(n_generation, pop_fitness, metrics):
 def show_metrics(metrics, pop_fitness, population):
     """
     Method for showing best result and best individual
-    :param metrics:
-    :param pop_fitness:
-    :param population:
+    :param metrics: values of metrics
+    :param pop_fitness: values of fitness for iteration
+    :param population: last population
     :return:
     """
     fit_idx = np.argsort(pop_fitness)[::-1]
@@ -47,8 +49,25 @@ def show_metrics(metrics, pop_fitness, population):
     plt.ylabel('Fitness')
     plt.show()
 
-    logger.info('best result: %s', min(pop_fitness))
-    logger.info('best individual: %s', best_fit)
+    logger.info(f'best result: {max(pop_fitness)}')
+    logger.info(f'best individual: {best_fit}')
+
+
+def save_metrics(metrics: pd.DataFrame, pop_fitness: list, population: list, config: dict):
+    """
+    Method for saving metrics
+    :param metrics: values of metrics
+    :param pop_fitness: values of fitness for iteration
+    :param population: last population
+    :param config: experiment configuration
+    :return:
+    """
+    current_time = datetime.now().strftime("%d-%m-%Y_%H:%M:%S")
+
+    save_output(file=metrics, file_name=f'results_metrics_{current_time}', extension='csv')
+    save_output(file=config, file_name=f'config_{current_time}', extension='txt')
+    save_output(file=pop_fitness, file_name=f'population_fitness_{current_time}', extension='txt')
+    save_output(file=population, file_name=f'population_{current_time}', extension='txt')
 
 # ======================================================================================================================
 # MUTATIONS
@@ -408,7 +427,7 @@ def tournament_selection_classic(population, pop_fitness, select_n, config):
     def sort_candidates():
         descending_sorted_candidates_indices = np.argsort(pop_fitness[candidates_indices])[::-1]
         return [
-            population[i]
+            population[candidates_indices[i]]
             for i in descending_sorted_candidates_indices
         ]
 
@@ -583,7 +602,7 @@ def calculate_fitness(population, model, converter):
 def new_genetic_algorithm(population, model, config, converter):
     """
     Główna metoda algorytmu - zawiera pętlę, która dla każdego pokolenia:
-    1. blicza wartość fitness osobników w populacji;
+    1. Oblicza wartość fitness osobników w populacji;
     2. Przeprowadza proces krzyżowania i tworzy populację dla nowego pokolenia;
     3. Przeprowadza proces mutacji;
     :param population:  list
@@ -595,11 +614,12 @@ def new_genetic_algorithm(population, model, config, converter):
 
     metrics = pd.DataFrame(columns=['generation', 'best_fit', 'avg_fit'])
 
-    print("Assert1")
+    logger.info('Initialize computation')
     pop_fitness = calculate_fitness(population=population, model=model, converter=converter)
-    print("Assert2")
+    logger.info(f'Initial fitness value calculated | Best fit: {max(pop_fitness)} '
+                f'| For a starting protocol {population[np.argmax(pop_fitness)]}')
 
-    while n_generation <= config['max_iter'] and min(pop_fitness) > config['stop_fitness']:
+    while n_generation <= config['max_iter'] and max(pop_fitness) < config['stop_fitness']:
 
         # nowe pokolenie
         population = next_generation(population=population, pop_fitness=pop_fitness, config=config)
@@ -613,11 +633,8 @@ def new_genetic_algorithm(population, model, config, converter):
 
         n_generation += 1
 
-        minimum = min(pop_fitness)
+        logger.info(f'Generation: {n_generation} | Best fit: {max(pop_fitness)} '
+                    f'| For a protocol {population[np.argmax(pop_fitness)]}')
 
-        print('Generation: ', n_generation, '| Best fitt: ', minimum, ' for a protocol: ', population[np.argmin(pop_fitness)])
-
-
-        logger.info(f'Generation: {n_generation} | Best fit: {min(pop_fitness)}')
-
-    show_metrics(metrics, pop_fitness, population)
+    show_metrics(metrics=metrics, pop_fitness=pop_fitness, population=population)
+    save_metrics(metrics=metrics, pop_fitness=pop_fitness, population=population, config=config)
