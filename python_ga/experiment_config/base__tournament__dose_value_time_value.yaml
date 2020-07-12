@@ -1,0 +1,68 @@
+# Base experiment
+# Selection: selection_tournament_classic
+# Mutate: mutate_dose_value, mutate_time_value
+
+# MODEL SETTINGS
+num_gpus: 2
+num_protocols: 10
+num_tests: 10
+hour_steps: 600
+protocol_resolution: 300
+
+# EXPERIMENT SETTINGS
+step_value: 0.25
+max_value: 10
+select_n: 0.5
+max_iter: 100
+stop_fitness: 1000000
+
+# CROSSOVER
+cross_type: 'normalized_crossover'
+
+# SELECTION
+selection:
+  ## Tournament selection classic
+  type: 'tournament_selection_classic'
+  probability: 0.9
+
+  ## Simple selection
+#  type: 'simple_selection'
+
+  ## Tournament selection tuned
+#  type: 'tournament_selection_tuned'
+#  probability: 0.9
+
+  ## Roulette selection
+#  type: 'roulette_selection'
+#  candidates_dispersion: false
+    # Please set the candidates_dispersion: false for now, to reduce number of potential issues.
+
+
+# MUTATION
+mutations:
+  ## Mutation swap values
+#  mutate_swap:
+#    mut_prob: 0.03
+
+  ## Mutation dose value
+  mutate_dose_value:
+    mut_prob: 0.05
+    min_value: 0.25
+    max_value: 10
+    step_value: 0.25
+
+  ## Mutation time value
+  mutate_time_value:
+    mut_prob: 0.05
+
+  ## Mutation merge doses
+#  mutate_merge:
+#    mut_prob: 0.05
+
+  ## Mutation split dose
+#  mutate_split:
+#    mut_prob: 0.05
+
+# SAVING SETTINGS
+save_every_iteration: true
+save_only_last_iteration: false

@@ -4,11 +4,12 @@ import random
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
+import os
 
 from datetime import datetime
 from itertools import cycle
 
-from utils import save_output
+from utils import save_output, resolve_saving_path
 
 logging.basicConfig(
     format="%(asctime)s [%(levelname)s] | %(name)s | %(funcName)s: %(message)s", level=logging.INFO, datefmt='%I:%M:%S')
@@ -33,42 +34,78 @@ def collect_metrics(n_generation, pop_fitness, metrics):
     return metrics.append(data, ignore_index=True)
 
 
-def show_metrics(metrics, pop_fitness, population):
+def show_metrics(metrics, all_fitness, all_populations, config):
     """
     Method for showing best result and best individual
     :param metrics: values of metrics
-    :param pop_fitness: values of fitness for iteration
-    :param population: last population
-    :return:
-    """
-    fit_idx = np.argsort(pop_fitness)[::-1]
-    best_fit = population[fit_idx[0]]
-
-    plt.plot(metrics['generation'], metrics['best_fit'])
-    plt.xlabel('Pokolenia')
-    plt.ylabel('Fitness')
-    plt.show()
-
-    logger.info(f'best result: {max(pop_fitness)}')
-    logger.info(f'best individual: {best_fit}')
-
-
-def save_metrics(metrics: pd.DataFrame, pop_fitness: list, population: list, config: dict):
-    """
-    Method for saving metrics
-    :param metrics: values of metrics
-    :param pop_fitness: values of fitness for iteration
-    :param population: last population
+    :param all_fitness: values of all fitnesses.
+    :param all_populations: all populations.
     :param config: experiment configuration
     :return:
     """
-    current_time = datetime.now().strftime("%d-%m-%Y_%H:%M:%S")
+    fit_idx = np.argsort(all_fitness[-1])[::-1]
+    best_fit = all_populations[-1][fit_idx[0]]
 
-    save_output(file=metrics, file_name=f'results_metrics_{current_time}', extension='csv')
-    save_output(file=config, file_name=f'config_{current_time}', extension='txt')
-    save_output(file=pop_fitness, file_name=f'population_fitness_{current_time}', extension='txt')
-    save_output(file=population, file_name=f'population_{current_time}', extension='txt')
+    config['experiment_time'] = datetime.now().strftime("%d-%m-%Y_%H:%M:%S")
+    config['saving_path'] = resolve_saving_path(config=config)
 
+    plt.figure(figsize=(14, 7))
+    plt.plot(metrics['generation'], metrics['best_fit'], label='Best fit')
+    plt.plot(metrics['generation'], metrics['avg_fit'], label='Avg git')
+    plt.xlabel('Iteration')
+    plt.ylabel('Fitness value')
+    plt.title(f"SELECTION : {config['selection']['type']}; MUTATIONS : {', '.join(config['mutations'].keys())}")
+    plt.suptitle(f"Experiment date and time: {config['experiment_time']}")
+    plt.legend()
+    plt.grid()
+    plt.savefig(os.path.join(config['saving_path'], f'plot_fitness_{config["experiment_time"]}.png'))
+
+    logger.info(f'best result: {max(all_fitness[-1])}')
+    logger.info(f'best individual: {best_fit}')
+
+
+def save_metrics(metrics: pd.DataFrame, all_fitness: list, all_populations: list, config: dict):
+    """
+    Method for saving metrics
+    :param metrics:         values of metrics
+    :param all_fitness:     values of all fitnesses
+    :param all_populations: all populations.
+    :param config:          experiment configuration
+    :return:
+    """
+    current_time = config["experiment_time"]
+
+    save_output(file=metrics, file_name=f'results_metrics_{current_time}', extension='csv', config=config)
+    save_output(file=config, file_name=f'config_{current_time}', extension='txt', config=config)
+    if config['save_every_iteration']:
+        save_output(file=all_fitness, file_name=f'fitness_all_{current_time}', extension='txt', config=config)
+        save_output(file=all_populations, file_name=f'populations_all_{current_time}', extension='txt', config=config)
+    if config['save_only_last_iteration'] and not config['save_every_iteration']:
+        save_output(file=all_fitness[-1], file_name=f'fitness_{current_time}', extension='txt', config=config)
+        save_output(file=all_populations[-1], file_name=f'population_{current_time}', extension='txt', config=config)
+
+
+def store_fitness_and_populations(
+        all_fitness: list,
+        all_populations: list,
+        fitness: np.ndarray,
+        population: np.ndarray,
+        converter,
+    ):
+    """
+    Method for storing all the fitnesses and populations.
+    :param all_fitness:     all fitness values.
+    :param all_populations: all populations.
+    :param fitness:         last fitness.
+    :param population:      last population.
+    :param converter:       representation converter
+    :return: updated list of all populations
+    """
+    all_fitness.append(list(fitness))
+
+    paired_population = [converter.convert_list_to_pairs(protocol=protocol) for protocol in population]
+    all_populations.append(paired_population)
+    return all_fitness, all_populations
 # ======================================================================================================================
 # MUTATIONS
 # ======================================================================================================================
@@ -206,9 +243,9 @@ def mutations(population, config):
     :return: population:    list
     """
     mutation = {
-        'mut_swap':         mutate_swap,
-        'mut_dose_value':   mutate_dose_value,
-        'mut_time_value':   mutate_time_value,
+        'mutate_swap':         mutate_swap,
+        'mutate_dose_value':   mutate_dose_value,
+        'mutate_time_value':   mutate_time_value,
         'mutate_merge':     mutate_merge,
         'mutate_split':     mutate_split,
     }
@@ -616,8 +653,16 @@ def new_genetic_algorithm(population, model, config, converter):
 
     logger.info('Initialize computation')
     pop_fitness = calculate_fitness(population=population, model=model, converter=converter)
+
+    all_fitness, all_populations = store_fitness_and_populations(
+        all_fitness=[],
+        all_populations=[],
+        fitness=pop_fitness,
+        population=population,
+        converter=converter,
+    )
     logger.info(f'Initial fitness value calculated | Best fit: {max(pop_fitness)} '
-                f'| For a starting protocol {population[np.argmax(pop_fitness)]}')
+                f'| For a starting protocol {all_populations[-1][np.argmax(pop_fitness)]}')
 
     while n_generation <= config['max_iter'] and max(pop_fitness) < config['stop_fitness']:
 
@@ -634,7 +679,14 @@ def new_genetic_algorithm(population, model, config, converter):
         n_generation += 1
 
         logger.info(f'Generation: {n_generation} | Best fit: {max(pop_fitness)} '
-                    f'| For a protocol {population[np.argmax(pop_fitness)]}')
+                    f'| For a protocol {all_populations[-1][np.argmax(pop_fitness)]}')
+        all_fitness, all_populations = store_fitness_and_populations(
+            all_fitness=all_fitness,
+            all_populations=all_populations,
+            fitness=pop_fitness,
+            population=population,
+            converter=converter,
+        )
 
-    show_metrics(metrics=metrics, pop_fitness=pop_fitness, population=population)
-    save_metrics(metrics=metrics, pop_fitness=pop_fitness, population=population, config=config)
+    show_metrics(metrics=metrics, all_fitness=all_fitness, all_populations=all_populations, config=config)
+    save_metrics(metrics=metrics, all_fitness=all_fitness, all_populations=all_populations, config=config)

@@ -1,5 +1,6 @@
 import numpy as np
 import os
+import yaml
 
 
 def get_rand_population(population_size=120):
@@ -43,15 +44,30 @@ class ModelWrapper:
         return self.model.predict(converted)
 
 
-def save_output(file: any, file_name: str, path: str = 'results', extension: str = 'csv'):
-    saving_directory = os.path.join(os.getcwd(), f'python_ga/{path}')
+def save_output(file: any, file_name: str, extension: str = 'csv', config=None):
+    saving_directory = resolve_saving_path(config=config)
     saving_path = f'{saving_directory}/{file_name}.{extension}'
-
-    if not os.path.exists(saving_directory):
-        os.makedirs(saving_directory)
 
     if extension == 'csv':
         file.to_csv(saving_path, index=False)
     else:
         with open(saving_path, 'w') as f:
             f.write(str(file))
+
+
+def resolve_saving_path(path: str = 'experiment_results', config=None):
+    if config:
+        sub_path = f'{os.path.basename(config["config_path"]).split(".")[0]}_{config["experiment_time"]}'
+        path = os.path.join(path, sub_path)
+    saving_directory = os.path.join(os.getcwd(), f'python_ga/{path}')
+
+    if not os.path.exists(saving_directory):
+        os.makedirs(saving_directory)
+
+    return saving_directory
+
+
+def read_config(config_path: str):
+    with open(config_path, 'r') as file:
+        config = yaml.load(file, yaml.FullLoader)
+    return config
