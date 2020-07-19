@@ -664,6 +664,8 @@ def new_genetic_algorithm(population, model, config, converter):
     logger.info(f'Initial fitness value calculated | Best fit: {max(pop_fitness)} '
                 f'| For a starting protocol {all_populations[-1][np.argmax(pop_fitness)]}')
 
+    date1 = datetime.now()
+
     while n_generation <= config['max_iter'] and max(pop_fitness) < config['stop_fitness']:
 
         # nowe pokolenie
@@ -680,6 +682,13 @@ def new_genetic_algorithm(population, model, config, converter):
 
         logger.info(f'Generation: {n_generation} | Best fit: {max(pop_fitness)} '
                     f'| For a protocol {all_populations[-1][np.argmax(pop_fitness)]}')
+        
+        date2 = date1
+        date1 = datetime.now()
+
+        logger.info("Time of " + str(date1 - date2))
+        
+        
         all_fitness, all_populations = store_fitness_and_populations(
             all_fitness=all_fitness,
             all_populations=all_populations,
