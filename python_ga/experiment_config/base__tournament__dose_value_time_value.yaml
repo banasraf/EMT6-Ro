@@ -12,6 +12,7 @@ protocol_resolution: 300
 # EXPERIMENT SETTINGS
 step_value: 0.25
 max_value: 10
+max_dose_value: 2.5
 select_n: 0.5
 max_iter: 100
 stop_fitness: 1000000

@@ -121,14 +121,19 @@ def mutate_dose_value(population, config):
     :param config:
     :return:
     """
-    max_dose = config['max_value']
-    min_dose = config['min_value']
-    step = config['step_value']
+    mutation_config = config['mutations']['mutate_dose_value']
+    max_dose_value = config['max_dose_value']
+
+    max_dose = mutation_config['max_value']
+    min_dose = mutation_config['min_value']
+    step = mutation_config['step_value']
     for i, genome in enumerate(population):
         for gene_idx in range(len(genome)):
             p = np.random.uniform()
-            if p < config['mut_prob']:
+            if p < mutation_config['mut_prob']:
                 limit_value = min(max_dose, max_dose - sum(genome))
+                if limit_value > max_dose_value:
+                    limit_value = max_dose_value
                 if limit_value > min_dose:
                     new_dose_value = np.random.randint(0, int(round((limit_value - min_dose) / step))) * step + min_dose
                     genome[gene_idx] = new_dose_value
@@ -146,14 +151,23 @@ def mutate_time_value(population, config):
     :param config:
     :return:
     """
+    mutation_config = config['mutations']['mutate_time_value']
+    max_dose_value = config['max_dose_value']
+
     for i, genome in enumerate(population):
         for gene_idx in range(len(genome)):
             p = np.random.uniform()
-            if p < config['mut_prob']:
+            if p < mutation_config['mut_prob']:
                 if genome[gene_idx] > 0:
                     new_dose_time = np.random.randint(len(genome))
-                    genome[new_dose_time] = genome[new_dose_time] + genome[gene_idx]
-                    genome[gene_idx] = 0
+                    new_dose_value = genome[new_dose_time] + genome[gene_idx]
+                    dose_remainder = 0
+                    if new_dose_value > max_dose_value:
+                        dose_remainder = new_dose_value - max_dose_value
+                        new_dose_value = max_dose_value
+
+                    genome[new_dose_time] = new_dose_value
+                    genome[gene_idx] = dose_remainder
     return population
 
 
@@ -165,12 +179,14 @@ def mutate_swap(population, config):
     :param config:          dict
     :return: population:    list
     """
+    mutation_config = config['mutations']['mutate_swap']
+
     length = len(population)
     width = len(population[0])
     for i in range(length):
         for j in range(width):
             p = np.random.uniform()
-            if p < config['mut_prob']:
+            if p < mutation_config['mut_prob']:
                 k = np.random.randint(0, width-1)
                 k = (j + k) % width
                 population[i][j], population[i][k] = population[i][k], population[i][j]
@@ -182,22 +198,31 @@ def mutate_merge(population, config, max_dose=10):
     Merging 2 doses (potentially zero) into one dose
     population - next population, array [population_size, element_size]
     """
+    mutation_config = config['mutations']['mutate_merge']
+    max_dose_value = config['max_dose_value']
+
     population = np.asarray(population)
     length = len(population[:, 1])
     width = len(population[1, :])
     for i in range(length):
-        if np.random.uniform() < config['mut_prob']:
+        if np.random.uniform() < mutation_config['mut_prob']:
             while True:
                 p = np.random.randint(0, width)
                 q = np.random.randint(0, width)
                 if (population[i, p] + population[i, q]) <= max_dose:
+                    new_dose_value = population[i, p] + population[i, q]
+                    dose_remainder = 0
+                    if new_dose_value > max_dose_value:
+                        dose_remainder = new_dose_value - max_dose_value
+                        new_dose_value = max_dose_value
+
                     if np.random.uniform() < 0.5:
-                        population[i, p] = population[i, p] + population[i, q]
-                        population[i, q] = 0
+                        population[i, p] = new_dose_value
+                        population[i, q] = dose_remainder
                         break
                     else:
-                        population[i, q] = population[i, p] + population[i, q]
-                        population[i, p] = 0
+                        population[i, q] = new_dose_value
+                        population[i, p] = dose_remainder
                         break
     return population.tolist()
 
@@ -207,11 +232,13 @@ def mutate_split(population, config, max_dose=10, min_dose=0.25):
     Splitting a non-zero dose (> 0.25Gy) into 2 doses.
     population - next population, array [population_size, element_size].
     """
+    mutation_config = config['mutations']['mutate_merge']
+
     population = np.asarray(population)
     length = len(population[:, 1])
     width = len(population[1, :])
     for i in range(length):
-        if np.random.uniform() < config['mut_prob']:
+        if np.random.uniform() < mutation_config['mut_prob']:
             while True:
                 p = np.random.randint(0, width)
                 if population[i, p] >= min_dose:
@@ -250,8 +277,8 @@ def mutations(population, config):
         'mutate_split':     mutate_split,
     }
 
-    for mut_type in list(config.keys()):
-        population = mutation[mut_type](population=population, config=config[mut_type])
+    for mut_type in list(config['mutations'].keys()):
+        population = mutation[mut_type](population=population, config=config)
         logger.info(f'{mut_type} {[sum(pop) for pop in population]}')
 
     return population
@@ -663,7 +690,6 @@ def new_genetic_algorithm(population, model, config, converter):
     )
     logger.info(f'Initial fitness value calculated | Best fit: {max(pop_fitness)} '
                 f'| For a starting protocol {all_populations[-1][np.argmax(pop_fitness)]}')
-
     date1 = datetime.now()
 
     while n_generation <= config['max_iter'] and max(pop_fitness) < config['stop_fitness']:
@@ -672,7 +698,7 @@ def new_genetic_algorithm(population, model, config, converter):
         population = next_generation(population=population, pop_fitness=pop_fitness, config=config)
 
         # mutacje
-        population = mutations(population=population, config=config['mutations'])
+        population = mutations(population=population, config=config)
 
         # fitness
         pop_fitness = calculate_fitness(population=population, model=model, converter=converter)
@@ -682,13 +708,12 @@ def new_genetic_algorithm(population, model, config, converter):
 
         logger.info(f'Generation: {n_generation} | Best fit: {max(pop_fitness)} '
                     f'| For a protocol {all_populations[-1][np.argmax(pop_fitness)]}')
-        
+
         date2 = date1
         date1 = datetime.now()
 
         logger.info("Time of " + str(date1 - date2))
-        
-        
+
         all_fitness, all_populations = store_fitness_and_populations(
             all_fitness=all_fitness,
             all_populations=all_populations,
