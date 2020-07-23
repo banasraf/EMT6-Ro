@@ -5,6 +5,8 @@ import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 import os
+import neptune
+
 
 from datetime import datetime
 from itertools import cycle
@@ -30,6 +32,8 @@ def collect_metrics(n_generation, pop_fitness, metrics):
     """
     best_fit = max(pop_fitness)
     avg_fit = np.mean(pop_fitness)
+    neptune.send_metric('iteration', n_generation)
+    neptune.send_metric('fitness', best_fit)
     data = pd.DataFrame([[n_generation, best_fit, avg_fit]], columns=['generation', 'best_fit', 'avg_fit'])
     return metrics.append(data, ignore_index=True)
 
@@ -674,6 +678,12 @@ def new_genetic_algorithm(population, model, config, converter):
     :param config:      dict
     :param converter:   representation converter
     """
+    
+    #neptune.set_project('TensorCell/cancertreatment')
+    neptune.init('TensorCell/cancertreatment', api_token='eyJhcGlfYWRkcmVzcyI6Imh0dHBzOi8vdWkubmVwdHVuZS5haSIsImFwaV91cmwiOiJodHRwczovL3VpLm5lcHR1bmUuYWkiLCJhcGlfa2V5IjoiNmI1ZmNjNWEtNTdkMi00NDgyLWJkOWQtZGMyOWI4MTU0NmQ1In0=')
+    neptune.create_experiment()
+    neptune.append_tag('test1')
+
     n_generation = 0
 
     metrics = pd.DataFrame(columns=['generation', 'best_fit', 'avg_fit'])
