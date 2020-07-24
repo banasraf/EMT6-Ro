@@ -680,15 +680,17 @@ def new_genetic_algorithm(population, model, config, converter):
     """
     
     #neptune.set_project('TensorCell/cancertreatment')
-    neptune.init('TensorCell/cancertreatment', api_token='eyJhcGlfYWRkcmVzcyI6Imh0dHBzOi8vdWkubmVwdHVuZS5haSIsImFwaV91cmwiOiJodHRwczovL3VpLm5lcHR1bmUuYWkiLCJhcGlfa2V5IjoiNmI1ZmNjNWEtNTdkMi00NDgyLWJkOWQtZGMyOWI4MTU0NmQ1In0=')
-    neptune.create_experiment()
-    neptune.append_tag('test1')
+    neptune.init('TensorCell/cancertreatment', api_token='')
+    neptune.create_experiment(name="Test3", params=config)
+    neptune.append_tag('test3')
 
     n_generation = 0
 
     metrics = pd.DataFrame(columns=['generation', 'best_fit', 'avg_fit'])
 
     logger.info('Initialize computation')
+    
+    date1 = datetime.now()
     pop_fitness = calculate_fitness(population=population, model=model, converter=converter)
 
     all_fitness, all_populations = store_fitness_and_populations(
@@ -700,7 +702,11 @@ def new_genetic_algorithm(population, model, config, converter):
     )
     logger.info(f'Initial fitness value calculated | Best fit: {max(pop_fitness)} '
                 f'| For a starting protocol {all_populations[-1][np.argmax(pop_fitness)]}')
+
+    date2 = date1
     date1 = datetime.now()
+
+    logger.info("Time: " + str(date1 - date2))
 
     while n_generation <= config['max_iter'] and max(pop_fitness) < config['stop_fitness']:
 
@@ -722,8 +728,8 @@ def new_genetic_algorithm(population, model, config, converter):
         date2 = date1
         date1 = datetime.now()
 
-        logger.info("Time of " + str(date1 - date2))
-
+        logger.info("Time: " + str(date1 - date2))
+        
         all_fitness, all_populations = store_fitness_and_populations(
             all_fitness=all_fitness,
             all_populations=all_populations,
@@ -734,3 +740,6 @@ def new_genetic_algorithm(population, model, config, converter):
 
     show_metrics(metrics=metrics, all_fitness=all_fitness, all_populations=all_populations, config=config)
     save_metrics(metrics=metrics, all_fitness=all_fitness, all_populations=all_populations, config=config)
+    neptune.stop()
+
+
