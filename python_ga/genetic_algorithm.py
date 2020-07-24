@@ -678,11 +678,12 @@ def new_genetic_algorithm(population, model, config, converter):
     :param config:      dict
     :param converter:   representation converter
     """
-    
+    print("Hello world")
+
     #neptune.set_project('TensorCell/cancertreatment')
-    neptune.init('TensorCell/cancertreatment', api_token='')
-    neptune.create_experiment(name="Test3", params=config)
-    neptune.append_tag('test3')
+    neptune.init('TensorCell/cancertreatment')
+    neptune.create_experiment(name="Test4", params=config)
+    neptune.append_tag('test4')
 
     n_generation = 0
 
