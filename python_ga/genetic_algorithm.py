@@ -678,7 +678,6 @@ def new_genetic_algorithm(population, model, config, converter):
     :param config:      dict
     :param converter:   representation converter
     """
-    print("Hello world")
 
     #neptune.set_project('TensorCell/cancertreatment')
     neptune.init('TensorCell/cancertreatment')
