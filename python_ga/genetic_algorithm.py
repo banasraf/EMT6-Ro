@@ -372,12 +372,13 @@ def cross_two_points(x1, x2, config):
     length = len(x1)
     lower_range = 1
     upper_range = length - 1
-    if config['crossover']['first_cross_point_range_percentage']:
-        lower_range = int(length * config['crossover']['first_cross_point_range_percentage'][0] / 100)
-        upper_range = int(length * config['crossover']['first_cross_point_range_percentage'][1] / 100)
+    if config['crossover']['cross_points_range_percentage']:
+        lower_range = int(length * config['crossover']['cross_points_range_percentage'][0] / 100)
+        middle_range = int(length * config['crossover']['cross_points_range_percentage'][1] / 100)
+        upper_range = int(length * config['crossover']['cross_points_range_percentage'][2] / 100)
 
-    cross_point_1 = np.random.randint(lower_range, upper_range)
-    cross_point_2 = np.random.randint(cross_point_1, length)
+    cross_point_1 = np.random.randint(lower_range, middle_range)
+    cross_point_2 = np.random.randint(cross_point_1, upper_range)
     new_x1[0:cross_point_1] = x1[0:cross_point_1]
     new_x1[cross_point_1:cross_point_2] = x2[cross_point_1:cross_point_2]
     new_x1[cross_point_2:length] = x1[cross_point_2:length]
