@@ -30,7 +30,7 @@ crossover:
   ## Two crossing points crossover
 #crossover:
 #  type: 'cross_two_points'
-#  first_cross_point_range_percentage: [25, 60]
+#  cross_points_range_percentage: [25, 50, 75]
 
   ## Uniform crossover
 #crossover:
