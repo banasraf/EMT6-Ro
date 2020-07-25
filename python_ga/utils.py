@@ -75,6 +75,12 @@ class ConvertRepresentation:
         ]
         return pair_protocol
 
+    def convert_population_lists_to_pairs(self, protocols):
+        return [
+            self.convert_list_to_pairs(protocol=protocol)
+            for protocol in protocols
+        ]
+
 
 class ModelWrapper:
     def __init__(self, model, converter):
