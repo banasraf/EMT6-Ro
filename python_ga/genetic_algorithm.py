@@ -370,7 +370,13 @@ def cross_two_points(x1, x2, config):
     new_x1 = []
     new_x2 = []
     length = len(x1)
-    cross_point_1 = np.random.randint(1, length - 1)
+    lower_range = 1
+    upper_range = length - 1
+    if config['crossover']['first_cross_point_range_percentage']:
+        lower_range = int(length * config['crossover']['first_cross_point_range_percentage'][0] / 100)
+        upper_range = int(length * config['crossover']['first_cross_point_range_percentage'][1] / 100)
+
+    cross_point_1 = np.random.randint(lower_range, upper_range)
     cross_point_2 = np.random.randint(cross_point_1, length)
     new_x1[0:cross_point_1] = x1[0:cross_point_1]
     new_x1[cross_point_1:cross_point_2] = x2[cross_point_1:cross_point_2]
@@ -378,6 +384,10 @@ def cross_two_points(x1, x2, config):
     new_x2[0:cross_point_1] = x2[0:cross_point_1]
     new_x2[cross_point_1:cross_point_2] = x1[cross_point_1:cross_point_2]
     new_x2[cross_point_2:length] = x2[cross_point_2:length]
+
+    new_x1 = normalize_crossover(new_x1, config)
+    new_x2 = normalize_crossover(new_x2, config)
+
     return new_x1, new_x2
 
 
@@ -393,11 +403,21 @@ def cross_one_point(x1, x2, config):
     new_x1 = []
     new_x2 = []
     length = len(x1)
-    cross_point = np.random.randint(1, length)
+    lower_range = 1
+    upper_range = length
+    if config['crossover']['cross_point_range_percentage']:
+        lower_range = int(length * config['crossover']['cross_point_range_percentage'][0] / 100)
+        upper_range = int(length * config['crossover']['cross_point_range_percentage'][1] / 100)
+
+    cross_point = np.random.randint(lower_range, upper_range)
     new_x1[0:cross_point] = x1[0:cross_point]
     new_x1[cross_point:length] = x2[cross_point:length]
     new_x2[0:cross_point] = x2[0:cross_point]
     new_x2[cross_point:length] = x1[cross_point:length]
+
+    new_x1 = normalize_crossover(new_x1, config)
+    new_x2 = normalize_crossover(new_x2, config)
+
     return new_x1, new_x2
 
 
@@ -420,6 +440,10 @@ def cross_uniform(x1, x2, config):
         else:
             new_x1.append(x2[i])
             new_x2.append(x1[i])
+
+    new_x1 = normalize_crossover(new_x1, config)
+    new_x2 = normalize_crossover(new_x2, config)
+
     return new_x1, new_x2
 
 
@@ -457,7 +481,7 @@ def create_offspring(pop_size, selected_individuals, config):
         # Wybór losowy
         x1 = random.choice(selected_individuals)
         x2 = random.choice(selected_individuals)
-        new_x1, new_x2 = cross[config['cross_type']](x1, x2, config)
+        new_x1, new_x2 = cross[config['crossover']['type']](x1, x2, config)
         new_population.append(new_x1), new_population.append(new_x2)
 
     return new_population
