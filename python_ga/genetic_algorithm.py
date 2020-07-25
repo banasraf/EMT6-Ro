@@ -32,8 +32,6 @@ def collect_metrics(n_generation, pop_fitness, metrics):
     """
     best_fit = max(pop_fitness)
     avg_fit = np.mean(pop_fitness)
-    neptune.send_metric('iteration', n_generation)
-    neptune.send_metric('fitness', best_fit)
     data = pd.DataFrame([[n_generation, best_fit, avg_fit]], columns=['generation', 'best_fit', 'avg_fit'])
     return metrics.append(data, ignore_index=True)
 
@@ -53,6 +51,8 @@ def show_metrics(metrics, all_fitness, all_populations, config):
     config['experiment_time'] = datetime.now().strftime("%d-%m-%Y_%H:%M:%S")
     config['saving_path'] = resolve_saving_path(config=config)
 
+    plot_saving_path = os.path.join(config['saving_path'], f'plot_fitness_{config["experiment_time"]}.png')
+
     plt.figure(figsize=(14, 7))
     plt.plot(metrics['generation'], metrics['best_fit'], label='Best fit')
     plt.plot(metrics['generation'], metrics['avg_fit'], label='Avg git')
@@ -62,10 +62,12 @@ def show_metrics(metrics, all_fitness, all_populations, config):
     plt.suptitle(f"Experiment date and time: {config['experiment_time']}")
     plt.legend()
     plt.grid()
-    plt.savefig(os.path.join(config['saving_path'], f'plot_fitness_{config["experiment_time"]}.png'))
+    plt.savefig(plot_saving_path)
 
     logger.info(f'best result: {max(all_fitness[-1])}')
     logger.info(f'best individual: {best_fit}')
+
+    neptune.log_image('fitness_figure', plot_saving_path)
 
 
 def save_metrics(metrics: pd.DataFrame, all_fitness: list, all_populations: list, config: dict):
@@ -107,7 +109,7 @@ def store_fitness_and_populations(
     """
     all_fitness.append(list(fitness))
 
-    paired_population = [converter.convert_list_to_pairs(protocol=protocol) for protocol in population]
+    paired_population = converter.convert_population_lists_to_pairs(protocols=population)
     all_populations.append(paired_population)
     return all_fitness, all_populations
 # ======================================================================================================================
@@ -655,12 +657,7 @@ def calculate_fitness(population, model, converter):
     :param converter:       representation converter
     :return: pop_fitness:   list
     """
-    paired_population = [
-        converter.convert_list_to_pairs(protocol=protocol)
-        for protocol in population
-    ]
-
-    logger.info(f'Type checker: population type {type(paired_population)}, protocol type {type(paired_population[0])}')
+    paired_population = converter.convert_population_lists_to_pairs(protocols=population)
 
     pop_fitness = model.predict(paired_population)
     pop_fitness = pop_fitness.reshape(len(population))
@@ -722,8 +719,19 @@ def new_genetic_algorithm(population, model, config, converter):
 
         n_generation += 1
 
-        logger.info(f'Generation: {n_generation} | Best fit: {max(pop_fitness)} '
-                    f'| For a protocol {all_populations[-1][np.argmax(pop_fitness)]}')
+        best_protocol = all_populations[-1][np.argmax(pop_fitness)]
+
+        paired_population = converter.convert_population_lists_to_pairs(protocols=population)
+
+        logger.info(f'Generation: {n_generation} | '
+                    f'Best fit: {max(pop_fitness)} | '
+                    f'For a protocol {best_protocol}')
+
+        neptune.log_metric('iteration', n_generation)
+        neptune.log_metric('best_fitness', max(pop_fitness))
+        neptune.log_metric('avg_fitness', np.mean(pop_fitness))
+        neptune.log_text('best_protocol', f'Protocol id: {np.argmax(pop_fitness)} | {best_protocol}')
+        neptune.log_text('protocols', str({i: value for i, value in enumerate(paired_population)}))
 
         date2 = date1
         date1 = datetime.now()
