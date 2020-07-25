@@ -18,7 +18,23 @@ max_iter: 100
 stop_fitness: 1000000
 
 # CROSSOVER
-cross_type: 'normalized_crossover'
+  ## Normalized crossover, randomly crossing single genes of genome
+crossover:
+  type: 'normalized_crossover'
+
+  ## Single crossing point crossover
+#crossover:
+#  type: 'cross_one_point'
+#  cross_point_range_percentage: [25, 75]
+
+  ## Two crossing points crossover
+#crossover:
+#  type: 'cross_two_points'
+#  first_cross_point_range_percentage: [25, 60]
+
+  ## Uniform crossover
+#crossover:
+#  type: 'cross_uniform'
 
 # SELECTION
 selection:
