@@ -703,8 +703,12 @@ def new_genetic_algorithm(population, model, config, converter):
 
     #neptune.set_project('TensorCell/cancertreatment')
     neptune.init('TensorCell/cancertreatment')
-    neptune.create_experiment(name="Test4", params=config)
-    neptune.append_tag('test4')
+    neptune.create_experiment(name="Grid Search", params=config)
+    neptune.append_tag('grid_search')
+    neptune.append_tag(config['selection']['type'])
+    neptune.append_tag(config['crossover']['type'])
+    for mutation_type in config['mutations'].keys():
+        neptune.append_tag(mutation_type)
 
     n_generation = 0
 
