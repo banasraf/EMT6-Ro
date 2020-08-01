@@ -7,14 +7,14 @@ def get_random_protocol(
     min_dose: float = 0.25,
     max_dose: float = 10.0,
     step_value: float = 0.25,
-    max_single_dose: float = 2.5,
+    max_dose_value: float = 2.5,
     time_steps: np.ndarray = None,
 ):
     protocol_dose = 0
-    max_protocol_value = max_single_dose
+    max_protocol_value = max_dose_value
     protocol_pair = []
     while protocol_dose < max_dose:
-        if max_dose - protocol_dose < max_single_dose:
+        if max_dose - protocol_dose < max_dose_value:
             max_protocol_value = max_dose - protocol_dose
 
         upper_value_boundary = int(round((max_protocol_value - min_dose) / step_value)) + 1
@@ -30,20 +30,20 @@ def get_rand_population(
         min_dose: float = 0.25,
         max_dose: float = 10.0,
         step_value: float = 0.25,
-        number_of_protocols: int = 10,
-        max_single_dose: float = 2.5,
+        num_protocols: int = 10,
+        max_dose_value: float = 2.5,
         hour_steps: int = 600,
         protocol_resolution: int = 300,
         available_hours: int = 24 * 5,
 ):
     time_steps = np.arange(0, available_hours * hour_steps, protocol_resolution)
     protocol_pairs = []
-    for protocol in range(number_of_protocols):
+    for protocol in range(num_protocols):
         protocol_pair = get_random_protocol(
             min_dose=min_dose,
             max_dose=max_dose,
             step_value=step_value,
-            max_single_dose=max_single_dose,
+            max_dose_value=max_dose_value,
             time_steps=time_steps,
         )
         protocol_pairs.append(protocol_pair)

@@ -1,0 +1,29 @@
+crossover:
+  cross_point_range_percentage:
+  - 25
+  - 75
+  type: cross_one_point
+hour_steps: 600
+max_dose_value: 2.0
+max_iter: 100
+max_value: 10
+mutations:
+  mutate_dose_value:
+    max_value: 10
+    min_value: 0.25
+    mut_prob: 0.05
+    step_value: 0.25
+  mutate_time_value:
+    mut_prob: 0.05
+num_gpus: 2
+num_protocols: 40
+num_tests: 2
+protocol_resolution: 300
+save_every_iteration: true
+save_only_last_iteration: false
+select_n: 0.5
+selection:
+  probability: 0.9
+  type: tournament_selection_tuned
+step_value: 0.25
+stop_fitness: 1000000

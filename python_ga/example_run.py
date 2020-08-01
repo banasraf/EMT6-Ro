@@ -32,23 +32,7 @@ def main(config_path: str):
     #model = MockPredictionModel()
     converter = ConvertRepresentation(hour_steps=hour_steps, protocol_resolution=protocol_resolution)
 
-
-    pair_protocols = [
-        # Initial
-        [(hour_steps * 12, 1.25), (hour_steps * 36, 3.0)],
-        [(hour_steps * 12, 1.25), (hour_steps * 24, 1.5), (hour_steps * 36, 1.5)],
-
-        # Sample
-        [(hour_steps * 12, 1.25), (hour_steps * 36, 3.0)],
-        [(hour_steps * 8, 1.25), (hour_steps * 30, 1.25), (hour_steps * 48, 1.75)],
-        [(hour_steps * 24, 4.25)],
-        [(hour_steps * 12, 2), (hour_steps * 36, 2.25)],
-        [(hour_steps * 6, 1), (hour_steps * 18, 1), (hour_steps * 30, 2.25)],
-        [(hour_steps * 36, 2), (hour_steps * 54, 2.25)],
-        [(hour_steps * 6, 1), (hour_steps * 18, 1), (hour_steps * 30, 8)],
-        [(hour_steps * 36, 4), (hour_steps * 54, 6)],
-    ]
-
+    pair_protocols = get_rand_population(num_protocols=config['num_protocols'], max_dose_value=config['max_dose_value'])
 
     list_protocols = [
         converter.convert_pairs_to_list(protocol=protocol)
