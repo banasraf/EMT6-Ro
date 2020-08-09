@@ -3,26 +3,56 @@ import os
 import yaml
 
 
+def assign_dose_within_time_constraint(
+    doses_time_steps: list,
+    time_steps: np.ndarray,
+    time_interval_steps: int,
+):
+    allowed_time_steps = time_steps.copy()
+    for dose_time_step in doses_time_steps:
+        lower_constraint = max(dose_time_step - time_interval_steps, 0)
+        upper_constraint = min(dose_time_step + time_interval_steps, max(time_steps))
+        for time_step in allowed_time_steps:
+            if lower_constraint <= time_step <= upper_constraint:
+                allowed_time_steps = allowed_time_steps[allowed_time_steps != time_step]
+
+    if len(allowed_time_steps) > 0:
+        dose_time = np.random.choice(allowed_time_steps)
+        return dose_time
+    return None
+
+
 def get_random_protocol(
     min_dose: float = 0.25,
     max_dose: float = 10.0,
     step_value: float = 0.25,
     max_dose_value: float = 2.5,
     time_steps: np.ndarray = None,
+    time_interval_steps: int = 1800,
 ):
     protocol_dose = 0
     max_protocol_value = max_dose_value
     protocol_pair = []
+    doses_time_steps = []
     while protocol_dose < max_dose:
         if max_dose - protocol_dose < max_dose_value:
             max_protocol_value = max_dose - protocol_dose
 
         upper_value_boundary = int(round((max_protocol_value - min_dose) / step_value)) + 1
         new_dose_value = np.random.randint(0, upper_value_boundary) * step_value + min_dose
-        protocol_pair.append(
-            (np.random.choice(time_steps), new_dose_value)
+
+        dose_time_step = assign_dose_within_time_constraint(
+            doses_time_steps=doses_time_steps,
+            time_steps=time_steps,
+            time_interval_steps=time_interval_steps,
         )
-        protocol_dose += new_dose_value
+        if dose_time_step is not None:
+            doses_time_steps.append(dose_time_step)
+            protocol_pair.append((dose_time_step, new_dose_value))
+            protocol_dose += new_dose_value
+        else:
+            break
+
     return protocol_pair
 
 
@@ -35,8 +65,10 @@ def get_rand_population(
         hour_steps: int = 600,
         protocol_resolution: int = 300,
         available_hours: int = 24 * 5,
+        time_interval_hours: float = 3.0,
 ):
     time_steps = np.arange(0, available_hours * hour_steps, protocol_resolution)
+    time_interval_steps = int(hour_steps * time_interval_hours)
     protocol_pairs = []
     for protocol in range(num_protocols):
         protocol_pair = get_random_protocol(
@@ -45,6 +77,7 @@ def get_rand_population(
             step_value=step_value,
             max_dose_value=max_dose_value,
             time_steps=time_steps,
+            time_interval_steps=time_interval_steps,
         )
         protocol_pairs.append(protocol_pair)
 
