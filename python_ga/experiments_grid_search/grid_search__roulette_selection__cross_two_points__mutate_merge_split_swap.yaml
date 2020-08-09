@@ -15,7 +15,7 @@ mutations:
     mut_prob: 0.05
   mutate_swap:
     mut_prob: 0.05
-num_gpus: 2
+num_gpus: 4
 num_protocols: 40
 num_tests: 2
 protocol_resolution: 300

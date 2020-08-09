@@ -13,9 +13,9 @@ mutations:
     mut_prob: 0.05
   mutate_split:
     mut_prob: 0.05
-num_gpus: 2
+num_gpus: 4
 num_protocols: 40
-num_tests: 2
+num_tests: 1
 protocol_resolution: 300
 save_every_iteration: true
 save_only_last_iteration: false
