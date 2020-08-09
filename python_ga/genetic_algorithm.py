@@ -127,6 +127,8 @@ def mutate_dose_value(population, config):
     :param config:
     :return:
     """
+    interval_in_indices = int(2 * config['time_interval_hours'])
+
     mutation_config = config['mutations']['mutate_dose_value']
     max_dose_value = config['max_dose_value']
 
@@ -147,6 +149,8 @@ def mutate_dose_value(population, config):
                     genome[gene_idx] = min_dose
                     break
                 break
+        population[i] = refine_genome_around_cross_point_to_time_constraint(
+            genome=genome, interval_in_indices=interval_in_indices)
     return population
 
 
@@ -157,6 +161,8 @@ def mutate_time_value(population, config):
     :param config:
     :return:
     """
+    interval_in_indices = int(2 * config['time_interval_hours'])
+
     mutation_config = config['mutations']['mutate_time_value']
     max_dose_value = config['max_dose_value']
 
@@ -174,17 +180,21 @@ def mutate_time_value(population, config):
 
                     genome[new_dose_time] = new_dose_value
                     genome[gene_idx] = dose_remainder
+        population[i] = refine_genome_around_cross_point_to_time_constraint(
+            genome=genome, interval_in_indices=interval_in_indices)
     return population
 
 
 def mutate_swap(population, config):
     """
-    Mutacja wymiay: badany jest każdy gen w genomie wszystkich osobników w populacji. Jeżeli wylosowana wartość p jest
+    Mutacja wymiany: badany jest każdy gen w genomie wszystkich osobników w populacji. Jeżeli wylosowana wartość p jest
     większa niż określone prawdopodobieństwo mutacji, wybrany gen jest zamieniamy miejscami z losowo wybranym innym genem
     :param population:      list
     :param config:          dict
     :return: population:    list
     """
+    interval_in_indices = int(2 * config['time_interval_hours'])
+
     mutation_config = config['mutations']['mutate_swap']
 
     length = len(population)
@@ -196,6 +206,8 @@ def mutate_swap(population, config):
                 k = np.random.randint(0, width-1)
                 k = (j + k) % width
                 population[i][j], population[i][k] = population[i][k], population[i][j]
+        population[i] = refine_genome_around_cross_point_to_time_constraint(
+            genome=population[i], interval_in_indices=interval_in_indices)
     return population
 
 
@@ -204,6 +216,8 @@ def mutate_merge(population, config, max_dose=10):
     Merging 2 doses (potentially zero) into one dose
     population - next population, array [population_size, element_size]
     """
+    interval_in_indices = int(2 * config['time_interval_hours'])
+
     mutation_config = config['mutations']['mutate_merge']
     max_dose_value = config['max_dose_value']
 
@@ -230,6 +244,8 @@ def mutate_merge(population, config, max_dose=10):
                         population[i, q] = new_dose_value
                         population[i, p] = dose_remainder
                         break
+        population[i] = refine_genome_around_cross_point_to_time_constraint(
+            genome=population[i], interval_in_indices=interval_in_indices)
     return population.tolist()
 
 
@@ -238,6 +254,8 @@ def mutate_split(population, config, max_dose=10, min_dose=0.25):
     Splitting a non-zero dose (> 0.25Gy) into 2 doses.
     population - next population, array [population_size, element_size].
     """
+    interval_in_indices = int(2 * config['time_interval_hours'])
+
     mutation_config = config['mutations']['mutate_merge']
 
     population = np.asarray(population)
@@ -264,6 +282,8 @@ def mutate_split(population, config, max_dose=10, min_dose=0.25):
                             population[i, p] = population[i, p] + d2
                             break
                     break
+        population[i] = refine_genome_around_cross_point_to_time_constraint(
+            genome=population[i], interval_in_indices=interval_in_indices)
     return population.tolist()
 
 
@@ -309,7 +329,35 @@ def crossroads_grouping():
     return [group_1, group_2, group_3, group_4]
 
 
-def gene_group_replacement(x1, x2, group):
+def assign_dose_on_position_with_constraint(
+    source_genome: np.ndarray,
+    destination_genome: list,
+    index: int,
+    interval_in_indices: int,
+    last_index_with_non_zero_dose: int = None,
+):
+    """
+    Assigns non-zero doses on correct positions regarding the set time interval.
+    Designed to work with normalized crossover and uniform crossover, when we iterate over genome as a vector.
+    """
+    if source_genome[index] == 0:
+        destination_genome.append(source_genome[index])
+    else:
+        if last_index_with_non_zero_dose is None:
+            # if first non-zero dose
+            destination_genome.append(source_genome[index])
+            last_index_with_non_zero_dose = index
+        elif last_index_with_non_zero_dose + interval_in_indices < index:
+            # if non-zero dose after the time constraint
+            destination_genome.append(source_genome[index])
+            last_index_with_non_zero_dose = index
+        else:
+            # if non-zero dose but within the time constraint
+            destination_genome.append(0)
+    return last_index_with_non_zero_dose
+
+
+def gene_group_replacement(x1, x2, group, config):
     """
     Metoda buduje genom dziecka przekazując mu geny z wyselekcjonowanej grupy od rodzica x2
     i pozostałe geny od rodzica x1.
@@ -318,7 +366,19 @@ def gene_group_replacement(x1, x2, group):
     :param group:   list
     :return: new_x: list
     """
-    new_x = [x2[idx] if idx in group else x1[idx] for idx, gene in enumerate(x1)]
+    interval_in_indices = int(2 * config['time_interval_hours'])
+
+    new_x = []
+    last_index_with_non_zero_dose = None
+    for idx, gene in enumerate(x1):
+        source_genome = x2 if idx in group else x1
+        last_index_with_non_zero_dose = assign_dose_on_position_with_constraint(
+            source_genome=source_genome,
+            destination_genome=new_x,
+            index=idx,
+            interval_in_indices=interval_in_indices,
+            last_index_with_non_zero_dose=last_index_with_non_zero_dose,
+        )
 
     return new_x
 
@@ -350,13 +410,63 @@ def normalized_crossover(x1, x2, config):
         if np.random.randint(0, 2) == 0:
             group.append(i)
 
-    new_x1 = gene_group_replacement(x1, x2, group)
-    new_x2 = gene_group_replacement(x2, x1, group)
+    new_x1 = gene_group_replacement(x1, x2, group, config)
+    new_x2 = gene_group_replacement(x2, x1, group, config)
 
     new_x1 = normalize_crossover(new_x1, config)
     new_x2 = normalize_crossover(new_x2, config)
 
     return new_x1, new_x2
+
+
+def refine_genome_around_cross_point_to_time_constraint(genome: list, interval_in_indices: int):
+    """
+    Refine existing genome to fit with the time interval constraint for non-zero doses.
+    Especially for mutations, designed to work as recursion operation, resolving single non-zero dose problem at a time.
+
+    To be used with:
+    * crossover one point
+    * crossover two points
+    * mutations of all types
+    """
+    genome = np.array(genome)
+    non_zero_indices = np.argwhere(genome > 0)[:, 0]
+    non_zero_differences = np.diff(non_zero_indices)
+    if not (non_zero_differences < interval_in_indices).any():
+        # if all non-zero doses are separated enough
+        return list(genome)
+
+    positions = np.argwhere(non_zero_differences <= interval_in_indices)[:, 0]
+
+    # for position in np.argwhere(non_zero_differences <= interval_in_indices)[:, 0]:
+    first_dose_time = non_zero_indices[positions[0]]
+    second_dose_time = non_zero_indices[positions[0] + 1]
+
+    no_of_indices_to_move_dose_by = interval_in_indices - (second_dose_time - first_dose_time)
+
+    if positions[0] > 0 and non_zero_differences[positions[0]-1] > no_of_indices_to_move_dose_by + interval_in_indices:
+        # if first non-zero dose can be moved earlier
+        genome[first_dose_time - no_of_indices_to_move_dose_by] = genome[first_dose_time]
+        genome[first_dose_time] = 0
+
+    elif len(non_zero_indices) == positions[0] + 1:
+        # if second non-zero dose is the last one non-zero dose
+        if len(genome) - second_dose_time > no_of_indices_to_move_dose_by:
+            # if possible to move the last non-zero dose
+            genome[second_dose_time + no_of_indices_to_move_dose_by] = genome[second_dose_time]
+        genome[second_dose_time] = 0
+    else:
+        if len(non_zero_indices) > positions[0] + 2:
+            third_dose_time = non_zero_indices[positions[0] + 2]
+            if third_dose_time - second_dose_time >= interval_in_indices + no_of_indices_to_move_dose_by:
+                # if possible to move the non-zero dose
+                genome[second_dose_time + no_of_indices_to_move_dose_by] = genome[second_dose_time]
+        genome[second_dose_time] = 0
+
+    # recursion
+    genome = refine_genome_around_cross_point_to_time_constraint(genome=genome, interval_in_indices=interval_in_indices)
+
+    return list(genome)
 
 
 def cross_two_points(x1, x2, config):
@@ -367,6 +477,8 @@ def cross_two_points(x1, x2, config):
     :param x2:                  list
     :return: new_x1, new_x1:    list, list
     """
+    interval_in_indices = int(2 * config['time_interval_hours'])
+
     new_x1 = []
     new_x2 = []
     length = len(x1)
@@ -386,6 +498,9 @@ def cross_two_points(x1, x2, config):
     new_x2[cross_point_1:cross_point_2] = x1[cross_point_1:cross_point_2]
     new_x2[cross_point_2:length] = x2[cross_point_2:length]
 
+    new_x1 = refine_genome_around_cross_point_to_time_constraint(genome=new_x1, interval_in_indices=interval_in_indices)
+    new_x2 = refine_genome_around_cross_point_to_time_constraint(genome=new_x2, interval_in_indices=interval_in_indices)
+
     new_x1 = normalize_crossover(new_x1, config)
     new_x2 = normalize_crossover(new_x2, config)
 
@@ -401,6 +516,8 @@ def cross_one_point(x1, x2, config):
     :param x2:                  list
     :return: new_x1, new_x1:    list, list
     """
+    interval_in_indices = int(2 * config['time_interval_hours'])
+
     new_x1 = []
     new_x2 = []
     length = len(x1)
@@ -415,6 +532,9 @@ def cross_one_point(x1, x2, config):
     new_x1[cross_point:length] = x2[cross_point:length]
     new_x2[0:cross_point] = x2[0:cross_point]
     new_x2[cross_point:length] = x1[cross_point:length]
+
+    new_x1 = refine_genome_around_cross_point_to_time_constraint(genome=new_x1, interval_in_indices=interval_in_indices)
+    new_x2 = refine_genome_around_cross_point_to_time_constraint(genome=new_x2, interval_in_indices=interval_in_indices)
 
     new_x1 = normalize_crossover(new_x1, config)
     new_x2 = normalize_crossover(new_x2, config)
@@ -431,16 +551,28 @@ def cross_uniform(x1, x2, config):
     :param x2:                  list
     :return: new_x1, new_x1:    list, list
     """
+    interval_in_indices = int(2 * config['time_interval_hours'])
+
     new_x1 = []
     new_x2 = []
+    last_index_with_non_zero_dose_x1 = None
+    last_index_with_non_zero_dose_x2 = None
     for i in range(len(x1)):
         p = np.random.uniform()
-        if p < 0.5:
-            new_x1.append(x1[i])
-            new_x2.append(x2[i])
-        else:
-            new_x1.append(x2[i])
-            new_x2.append(x1[i])
+        last_index_with_non_zero_dose_x1 = assign_dose_on_position_with_constraint(
+            source_genome=x1 if p < 0.5 else x2,
+            destination_genome=new_x1,
+            index=i,
+            interval_in_indices=interval_in_indices,
+            last_index_with_non_zero_dose=last_index_with_non_zero_dose_x1,
+        )
+        last_index_with_non_zero_dose_x2 = assign_dose_on_position_with_constraint(
+            source_genome=x2 if p < 0.5 else x1,
+            destination_genome=new_x2,
+            index=i,
+            interval_in_indices=interval_in_indices,
+            last_index_with_non_zero_dose=last_index_with_non_zero_dose_x2,
+        )
 
     new_x1 = normalize_crossover(new_x1, config)
     new_x2 = normalize_crossover(new_x2, config)
@@ -701,7 +833,7 @@ def new_genetic_algorithm(population, model, config, converter):
     :param converter:   representation converter
     """
 
-    #neptune.set_project('TensorCell/cancertreatment')
+    # neptune.set_project('TensorCell/cancertreatment')
     neptune.init('TensorCell/cancertreatment')
     neptune.create_experiment(name="Grid Search", params=config)
     neptune.append_tag('grid_search')
@@ -709,6 +841,9 @@ def new_genetic_algorithm(population, model, config, converter):
     neptune.append_tag(config['crossover']['type'])
     for mutation_type in config['mutations'].keys():
         neptune.append_tag(mutation_type)
+        neptune.append_tag(str(f"mut_proba {config['mutations'][mutation_type]['mut_prob']}"))
+        if config['selection']['type'] != 'simple_selection':
+            neptune.append_tag(str(f"select_proba {config['selection']['probability']}"))
 
     n_generation = 0
 
