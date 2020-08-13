@@ -1,5 +1,6 @@
 #include "emt6ro/division/cell-division.h"
 #include "emt6ro/common/debug.h"
+#include "emt6ro/common/cuda-utils.h"
 
 namespace emt6ro {
 
@@ -27,8 +28,18 @@ __device__ void divideCells(GridView<Site> &lattice, const Parameters &params, C
   }
 }
 
+__device__ void cellDivision(GridView<Site> &lattice, Coords parent, 
+                             const Parameters &params, CuRandEngine &rand) {
+  auto &cell = lattice(parent).cell;
+  auto neighbour = chooseNeighbour(parent.r, parent.c, rand);
+  if (!lattice(neighbour).isOccupied()) {
+    lattice(neighbour).cell = divideCell(cell, params, rand);
+    lattice(neighbour).state = Site::State::OCCUPIED;
+  }
+}
+
 __global__ void cellDivisionKernel(GridView<Site> *lattices, Parameters params,
-                                   const bool *division_ready, curandState_t *rand_states) {
+                                   const int *division_ready, curandState_t *rand_states) {
   if (!division_ready[blockIdx.x]) return;
   curandState_t *rand_state =
       rand_states + blockDim.x * blockDim.y * blockIdx.x + blockDim.x * threadIdx.y + threadIdx.x;
@@ -37,7 +48,7 @@ __global__ void cellDivisionKernel(GridView<Site> *lattices, Parameters params,
   divideCells(lattice, params, rand);
 }
 
-void batchCellDivision(GridView<Site> *lattices, Parameters params, const bool *division_ready,
+void batchCellDivision(GridView<Site> *lattices, Parameters params, const int *division_ready,
                        curandState_t *rand_states, int32_t batch_size,
                        cudaStream_t stream) {
   cellDivisionKernel<<<batch_size, dim3(CuBlockDimX/2, CuBlockDimY/2), 0, stream>>>

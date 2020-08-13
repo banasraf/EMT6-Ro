@@ -9,6 +9,8 @@ namespace emt6ro {
 
 HostGrid<Site> loadFromFile(const std::string &filename, const Parameters &parameters);
 
+void saveToFile(const HostGrid<Site> &state, const std::string &filename);
+
 }
 
 #endif  // EMT6RO_STATE_STATE_H_

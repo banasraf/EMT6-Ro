@@ -55,7 +55,10 @@ __host__ __device__ Coords chooseNeighbour(uint32_t r, uint32_t c, R &rand) {
 
 __device__ void divideCells(GridView<Site> &lattice, const Parameters &params, CuRandEngine &rand);
 
-void batchCellDivision(GridView<Site> *lattices, Parameters params, const bool *division_ready,
+__device__ void cellDivision(GridView<Site> &lattice, Coords parent, 
+                             const Parameters &params, CuRandEngine &rand);
+
+void batchCellDivision(GridView<Site> *lattices, Parameters params, const int *division_ready,
                        curandState_t *rand_states, int32_t batch_size,
                        cudaStream_t stream = nullptr);
 

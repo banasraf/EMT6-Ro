@@ -1,8 +1,11 @@
 #include <pybind11/pybind11.h>
 #include <pybind11/stl.h>
+#include <pybind11/numpy.h>
 #include <future>
 #include <algorithm>
 #include "emt6ro/simulation/simulation.h"
+#include "emt6ro/diffusion/old-diffusion.h"
+#include "emt6ro/diffusion/diffusion.h"
 #include "emt6ro/state/state.h"
 
 namespace emt6ro {
@@ -101,7 +104,33 @@ class Experiment {
 };
 
 PYBIND11_MODULE(backend, m) {
-  py::class_<HostGrid<Site>>(m, "TumorState");
+  PYBIND11_NUMPY_DTYPE(Substrates, cho, ox, gi);
+
+  py::class_<HostGrid<Site>>(m, "TumorState")
+      .def_property_readonly("substrates", [](const HostGrid<Site> &self) {
+        auto view = self.view();
+        std::array<int64_t, 2> shape{view.dims.height - 2, view.dims.width - 2};
+        std::array<int64_t, 2> strides{view.dims.width * sizeof(Site), sizeof(Site)};
+        py::array_t<Substrates> result(shape, strides, &view(1, 1).substrates);
+        return result;
+      })
+      .def("old_diffuse", &oldDiffusion)
+      .def("diffuse", [](HostGrid<Site> &self, const Parameters &params, uint32_t steps) {
+        auto view = self.view();
+        device::buffer<ROI> rois(1);
+        std::vector<uint8_t> mask(view.dims.vol());
+        auto d_mask = device::buffer<uint8_t>::fromHost(mask.data(), mask.size());
+        auto data = device::buffer<Site>::fromHost(view.data, view.dims.vol());
+        GridView<Site> d_view{data.data(), view.dims};
+        auto lattices = device::buffer<GridView<Site>>::fromHost(&d_view, 1);
+        findROIs(rois.data(), d_mask.data(), lattices.data(), 1);
+        ROI roi;
+        rois.copyToHost(&roi);
+        std::cout << "new r: " << roi.origin.r << " c: " << roi.origin.c << " h: " << roi.dims.height << " w: " << roi.dims.width << std::endl;
+        batchDiffusion(lattices.data(), rois.data(), d_mask.data(), params.diffusion_params, params.external_levels, 
+                       steps, view.dims, 1);
+        data.copyToHost(view.data);
+      });
 
   py::class_<Parameters>(m, "Parameters");
 

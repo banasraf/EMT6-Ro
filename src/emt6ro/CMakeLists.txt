@@ -18,3 +18,4 @@ target_include_directories(emt6ro PRIVATE ${PROJECT_SOURCE_DIR}/third-party/json
 target_include_directories(emt6ro PUBLIC ${PROJECT_SOURCE_DIR}/src)
 target_include_directories(emt6ro INTERFACE ${CMAKE_CUDA_TOOLKIT_INCLUDE_DIRECTORIES})
 set_property(TARGET emt6ro PROPERTY INTERPROCEDURAL_OPTIMIZATION $<$<CONFIG:Release>:...>)
+target_link_libraries(emt6ro PUBLIC OpenMP::OpenMP_CXX)

@@ -66,10 +66,10 @@ class Simulation {
     return str.stream_;
   }
 
+  void step();
+
  private:
   void populateLattices();
-
-  void step();
 
   void diffuse();
 
@@ -88,7 +88,7 @@ class Simulation {
   device::buffer<GridView<Site>> lattices;
   device::buffer<ROI> rois;
   device::buffer<uint8_t> border_masks;
-  device::buffer<bool> division_ready;
+  device::buffer<int> division_ready;
   CuRandEngineState rand_state;
   device::buffer<uint32_t> results;
   uint32_t step_ = 0;

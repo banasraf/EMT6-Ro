@@ -3,12 +3,15 @@
 #include <iostream>
 #include <random>
 #include <vector>
+#include <cmath>
 #include "emt6ro/common/debug.h"
 #include "emt6ro/common/grid.h"
 #include "emt6ro/diffusion/diffusion.h"
+#include "emt6ro/diffusion/old-diffusion.h"
 #include "emt6ro/division/cell-division.h"
 #include "emt6ro/simulation/simulation.h"
 #include "emt6ro/statistics/statistics.h"
+#include "emt6ro/common/cuda-utils.h"
 
 namespace emt6ro {
 
@@ -36,16 +39,19 @@ __host__ __device__ uint8_t vacantNeighbours(const GridView<Site> &grid, int32_t
 
 __global__ void cellSimulationKernel(GridView<Site> *grids, ROI *rois,
                                      Parameters params, curandState_t *rand_states,
-                                     bool *dividing_cells,
+                                     int *dividing_cells,
                                      Protocol *protocols, uint32_t step) {
-  extern __shared__ bool division_ready[];
-  uint8_t vacant_neighbours[4];
+  extern __shared__ uint64_t division_ready[];
+  uint64_t div_cells = 0;
+  // Coords dividing{0, 0};
+  uint8_t vacant_neighbours[SitesPerThread];
   const auto roi = rois[blockIdx.x];
   auto &grid = grids[blockIdx.x];
   const auto &protocol = protocols[blockIdx.x];
   const auto start_r = roi.origin.r;
   const auto start_c = roi.origin.c;
   const auto tid = blockDim.x * threadIdx.y + threadIdx.x;
+  // if (tid == 0) division_ready[0] = 0;
   curandState_t *rand_state =
       rand_states + blockDim.x * blockDim.y * blockIdx.x + tid;
   CuRandEngine rand(rand_state);
@@ -55,32 +61,34 @@ __global__ void cellSimulationKernel(GridView<Site> *grids, ROI *rois,
     ++subi;
   }
   __syncthreads();
-  division_ready[tid] = false;
   subi = 0;
   auto dose = protocol.getDose(step);
   GRID_FOR(start_r, start_c, roi.dims.height + start_r, roi.dims.width + start_c) {
     auto &site = grid(r, c);
-    division_ready[tid] = division_ready[tid] ||
-                          site.step(params, vacant_neighbours[subi], dose, rand);
+    auto d = site.step(params, vacant_neighbours[subi], dose, rand);
+    // dividing.r |= (int)(d && !dividing.r) * r;
+    // dividing.c |= (int)(d && !dividing.c) * c;
+    // dividing = {r * (int32_t)d, c * (int32_t)d};
+    div_cells |= (!div_cells && d) * Coords{r, c}.encode();
+    // if (dividing) atomicExch(division_ready, 1);
     ++subi;
   }
-  __syncthreads();
-  int t = tid;
-  for (int d = 1; d < blockDim.y * blockDim.x; d *= 2) {
-    if (t % 2 == 0) {
-      division_ready[tid] = division_ready[tid] || division_ready[tid + d];
-      t /= 2;
-    }
-    __syncthreads();
+  div_cells = block_reduce(div_cells, division_ready, [](uint64_t a, uint64_t b){return a | (b * (int)(!a));});
+  // if (tid == 0) dividing_cells[blockIdx.x] = div_cells;
+  // if (dividing != Coords{0, 0}) {
+    // cellDivision(grid, dividing, params, rand);
+  // }
+  if (tid == 0 && div_cells) {
+    cellDivision(grid, Coords::decode(div_cells), params, rand);
   }
-  if (tid == 0) dividing_cells[blockIdx.x] = division_ready[0];
 }
 
 }  // namespace detail
 
 void Simulation::populateLattices() {
-  auto blocks = (batch_size + 1023) / 1024;
-  auto block_size = (batch_size > 1024) ? 1024 : batch_size;
+  auto mbs = CuBlockDimX * CuBlockDimY;
+  auto blocks = div_ceil(batch_size, mbs);
+  auto block_size = (batch_size > mbs) ? mbs : batch_size;
   detail::populateGridViewsKernel<<<blocks, block_size, 0, str.stream_>>>
     (lattices.data(), batch_size, dims, data.data());
   KERNEL_DEBUG("populate")
@@ -125,7 +133,7 @@ void Simulation::step() {
   }
   diffuse();
   simulateCells();
-  cellDivision();
+  // cellDivision();
   ++step_;
 }
 
@@ -133,11 +141,12 @@ void Simulation::diffuse() {
   batchDiffusion(lattices.data(), rois.data(), border_masks.data(), params.diffusion_params,
                  params.external_levels, params.time_step/params.diffusion_params.time_step,
                  dims, batch_size, str.stream_);
+  // oldBatchDiffusion(data.data(), dims, params, batch_size);
 }
 
 void Simulation::simulateCells() {
   detail::cellSimulationKernel
-    <<<batch_size, dim3(CuBlockDimX, CuBlockDimY), CuBlockDimX*CuBlockDimY, str.stream_>>>
+    <<<batch_size, dim3(CuBlockDimX, CuBlockDimY), sizeof(uint64_t)*CuBlockDimX*CuBlockDimY/32, str.stream_>>>
     (lattices.data(), rois.data(), params, rand_state.states(), division_ready.data(),
         protocols.data(), step_);
   KERNEL_DEBUG("simulate cells")
