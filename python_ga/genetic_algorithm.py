@@ -429,10 +429,25 @@ def refine_genome_around_cross_point_to_time_constraint(genome: list, interval_i
     * crossover two points
     * mutations of all types
     """
+    def check_first_dose_can_be_moved_earlier():
+        return position_of_wrong_dose == 0 and first_dose_index >= no_of_indices_to_move_dose
+
+    def check_not_first_dose_can_be_moved_earlier():
+        return position_of_wrong_dose > 0 and \
+            intervals_between_doses[position_of_wrong_dose - 1] >= interval_in_indices + no_of_indices_to_move_dose
+
+    def check_last_dose_can_be_moved_later():
+        return len(non_zero_dose_indices) == position_of_wrong_dose + 1 and \
+               len(genome) - second_dose_index > no_of_indices_to_move_dose
+
+    def check_not_last_dose_can_be_moved_later():
+        return len(non_zero_dose_indices) > position_of_wrong_dose + 2 and \
+               non_zero_dose_indices[position_of_wrong_dose + 2] - second_dose_index >= \
+               interval_in_indices + no_of_indices_to_move_dose
+
     def move_first_dose():
         genome[first_dose_index - no_of_indices_to_move_dose] = genome[first_dose_index]
         genome[first_dose_index] = 0
-        # print(first_dose_index)
 
     def move_second_dose():
         genome[second_dose_index + no_of_indices_to_move_dose] = genome[second_dose_index]
@@ -452,30 +467,19 @@ def refine_genome_around_cross_point_to_time_constraint(genome: list, interval_i
     second_dose_index = non_zero_dose_indices[position_of_wrong_dose + 1]
 
     no_of_indices_to_move_dose = interval_in_indices - (second_dose_index - first_dose_index)
-    if position_of_wrong_dose == 0 and first_dose_index >= no_of_indices_to_move_dose:
-        # if the very first non-zero dose can be moved earlier
-        move_first_dose()
 
-    elif position_of_wrong_dose > 0 and \
-            intervals_between_doses[position_of_wrong_dose - 1] >= interval_in_indices + no_of_indices_to_move_dose:
-        # if non-zero dose can be moved earlier
+    if check_first_dose_can_be_moved_earlier():
+        move_first_dose()
+    elif check_not_first_dose_can_be_moved_earlier():
         move_first_dose()
     else:
-        if len(non_zero_dose_indices) == position_of_wrong_dose + 1:
-            # if next non-zero dose is the last non-zero dose
-            if len(genome) - second_dose_index > no_of_indices_to_move_dose:
-                # if possible to move the last non-zero dose
-                move_second_dose()
-
-        elif len(non_zero_dose_indices) > position_of_wrong_dose + 2:
-            # if possible to move the non-zero dose further, without destroy the time constraint
-            third_dose_time = non_zero_dose_indices[position_of_wrong_dose + 2]
-            if third_dose_time - second_dose_index >= interval_in_indices + no_of_indices_to_move_dose:
-                # if possible to move the non-zero dose
-                move_second_dose()
-
-        # if cannot move the non-zero dose, erase it
-        genome[second_dose_index] = 0
+        if check_last_dose_can_be_moved_later():
+            move_second_dose()
+        elif check_not_last_dose_can_be_moved_later():
+            move_second_dose()
+        else:
+            # if cannot move the non-zero dose, erase it
+            genome[second_dose_index] = 0
 
     # recursion
     genome = refine_genome_around_cross_point_to_time_constraint(genome=genome, interval_in_indices=interval_in_indices)
