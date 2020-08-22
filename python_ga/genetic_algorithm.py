@@ -11,7 +11,7 @@ import neptune
 from datetime import datetime
 from itertools import cycle
 
-from utils import save_output, resolve_saving_path
+from utils import save_output, resolve_saving_path, calculate_probability_annealing
 
 logging.basicConfig(
     format="%(asctime)s [%(levelname)s] | %(name)s | %(funcName)s: %(message)s", level=logging.INFO, datefmt='%I:%M:%S')
@@ -287,12 +287,13 @@ def mutate_split(population, config, max_dose=10, min_dose=0.25):
     return population.tolist()
 
 
-def mutations(population, config):
+def mutations(population, config, iteration):
     """
     Metoda sterująca przebiegiem mutacji w populacji. Dla każdego z wybranych typów mutacji wywoływana jest odpowiednia
     metoda.
     :param population:      list
     :param config:          dict
+    :parma iteration:       int
     :return: population:    list
     """
     mutation = {
@@ -304,6 +305,7 @@ def mutations(population, config):
     }
 
     for mut_type in list(config['mutations'].keys()):
+        config['mutations'][mut_type]['mut_prob'] = calculate_probability_annealing(iteration)
         population = mutation[mut_type](population=population, config=config)
         logger.info(f'{mut_type} {[sum(pop) for pop in population]}')
 
@@ -893,7 +895,7 @@ def new_genetic_algorithm(population, model, config, converter):
         population = next_generation(population=population, pop_fitness=pop_fitness, config=config)
 
         # mutacje
-        population = mutations(population=population, config=config)
+        population = mutations(population=population, config=config, iteration=n_generation)
 
         # fitness
         pop_fitness = calculate_fitness(population=population, model=model, converter=converter)

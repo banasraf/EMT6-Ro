@@ -152,3 +152,11 @@ def read_config(config_path: str):
     with open(config_path, 'r') as file:
         config = yaml.load(file, yaml.FullLoader)
     return config
+
+
+def calculate_probability_annealing(iteration, max_value=0.5, max_iter=100, rounding_decimal=6):
+    def formula(x):
+        return np.round((x ** 4) * max_value, rounding_decimal)
+
+    x = 1 - iteration / max_iter
+    return formula(x)
