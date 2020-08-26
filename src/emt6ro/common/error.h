@@ -18,7 +18,7 @@ std::string make_string(const Arg &arg, const Args & ... args) {
 }
 
 template <>
-std::string make_string() {
+inline std::string make_string() {
   return "";
 }
 

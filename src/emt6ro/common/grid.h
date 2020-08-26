@@ -8,11 +8,11 @@
 namespace emt6ro {
 
 struct Dims {
-  int32_t height;
-  int32_t width;
+  int16_t height;
+  int16_t width;
 
   inline __host__ __device__ int32_t vol() const {
-    return height * width;
+    return static_cast<int32_t>(height) * width;
   }
 
   inline __host__ __device__ bool operator==(Dims rhs) {
@@ -24,12 +24,12 @@ struct Dims {
 };
 
 struct Coords {
-  int32_t r;
-  int32_t c;
+  int16_t r;
+  int16_t c;
 
   __host__ __device__
-  uint64_t encode() {
-    return *reinterpret_cast<uint64_t*>(this);
+  uint32_t encode() {
+    return (static_cast<uint32_t>(r) << 16) | c;
   }
 
   __host__ __device__
@@ -43,10 +43,43 @@ struct Coords {
   }
 
   static __host__ __device__
-  Coords decode(uint64_t d) {
+  Coords decode(uint32_t d) {
     Coords coords;
-    coords = *reinterpret_cast<Coords*>(&d);
+    coords.r = reinterpret_cast<uint16_t*>(&d)[1];
+    coords.c = reinterpret_cast<uint16_t*>(&d)[0];
     return coords;
+  }
+};
+
+struct Coords2 {
+  Coords coords[2];
+
+  Coords2() = default;
+
+  __host__ __device__
+  Coords2(Coords a, Coords b) {
+    coords[0] = a;
+    coords[1] = b;
+  }
+
+  __host__ __device__
+  Coords &operator[](size_t i) {
+    return coords[i];
+  }
+
+  static __host__ __device__
+  Coords2 decode(uint64_t d) {
+    Coords2 result;
+    result[0] = Coords::decode(reinterpret_cast<uint32_t*>(&d)[1]);
+    result[1] = Coords::decode(reinterpret_cast<uint32_t*>(&d)[0]);
+    return result;
+  }
+
+  __host__ __device__
+  uint64_t encode() {
+    uint64_t a = static_cast<uint64_t>(coords[0].encode()) << 32;
+    uint64_t b = a | static_cast<uint64_t>(coords[1].encode());
+    return b;
   }
 };
 
@@ -56,27 +89,10 @@ struct ROI {
   Dims dims;
 };
 
-inline ROI bordered(ROI roi, int32_t border = 1) {
+inline ROI bordered(ROI roi, int16_t border = 1) {
   return ROI{{roi.origin.r - border, roi.origin.c - border}, 
-             {roi.dims.height + 2*border, roi.dims.width + 2*border}};
+             {roi.dims.height + border*2, roi.dims.width + border*2}};
 }
-
-// class device_iter {
-//  public:
-  
-//   class ICoords {
-//     int32_t r; 
-//     int32_t c;
-//     int32_t i;
-//   }
-
-//   class iter {
-//     using value_type = ICoords;
-//     using pointer  = ICoords*;
-//     using reference = ICoords&;
-//     using 
-//   }
-// }
 
 template <typename T>
 struct GridView {
@@ -85,11 +101,11 @@ struct GridView {
   T *data;
   Dims dims;
 
-  inline __host__ __device__  const T& operator()(int32_t r, int32_t c) const {
+  inline __host__ __device__  const T& operator()(int16_t r, int16_t c) const {
     return data[r * dims.width + c];
   }
 
-  inline __host__ __device__ T& operator()(int32_t r, int32_t c) {
+  inline __host__ __device__ T& operator()(int16_t r, int16_t c) {
     return data[r * dims.width + c];
   }
 
@@ -130,15 +146,21 @@ class HostGrid {
     std::copy(rhs.data_.get(), rhs.data_.get() + rhs.view_.dims.vol(), data_.get());
   }
 
-  GridView<T> view() const {
+  GridView<T> view() {
     return view_;
+  }
+
+  GridView<const T> view() const {
+    return GridView<const T>(view_);
   }
 };
 
 }  // namespace emt6ro
 
 #define GRID_FOR(START_R, START_C, END_R, END_C) \
-for (int32_t r = threadIdx.y + START_R; r < END_R; r += blockDim.y) \
-  for (int32_t c = threadIdx.x + START_C; c < END_C; c += blockDim.x)
+for (int16_t r = static_cast<int16_t>(threadIdx.y) + START_R; \
+     r < END_R; r += static_cast<int16_t>(blockDim.y)) \
+  for (int16_t c = static_cast<int16_t>(threadIdx.x) + START_C; c < END_C; \
+       c += static_cast<int16_t>(blockDim.x))
 
 #endif  // EMT6RO_COMMON_GRID_H_

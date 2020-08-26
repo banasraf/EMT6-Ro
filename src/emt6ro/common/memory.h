@@ -3,6 +3,7 @@
 
 #include <cuda_runtime_api.h>
 #include <memory>
+#include "debug.h"
 
 namespace emt6ro {
 namespace device {
@@ -14,22 +15,30 @@ struct Stream {
     cudaStreamCreate(&stream_);
   }
 
-  Stream(Stream &&rhs) {
-    stream_ = rhs.stream_;
+  Stream(Stream &&rhs): stream_(rhs.stream_) {
     rhs.stream_ = 0;
   }
 
   Stream& operator=(Stream &&rhs) {
-    if (&rhs == this)
-      return *this;
-    cudaStreamDestroy(stream_);
-    stream_ = rhs.stream_;
-    rhs.stream_ = 0;
+    if (&rhs != this) {
+      Release();
+      stream_ = rhs.stream_;
+      rhs.stream_ = 0;
+    }
     return *this;
   }
 
   ~Stream() {
-    cudaStreamDestroy(stream_);
+    Release();
+  }
+
+ private:
+  void Release() {
+    if (stream_) {
+      cudaStreamSynchronize(stream_);
+      cudaStreamDestroy(stream_);
+      KERNEL_DEBUG("stream destroy");
+    }
   }
 };
 

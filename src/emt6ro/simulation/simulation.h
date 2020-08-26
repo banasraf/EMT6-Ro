@@ -24,7 +24,7 @@ class Simulation {
     lattices = std::move(rhs.lattices);
     rois = std::move(rhs.rois);
     border_masks = std::move(rhs.border_masks);
-    division_ready = std::move(rhs.division_ready);
+    occupied = std::move(rhs.occupied);
     rand_state = std::move(rhs.rand_state);
     results = std::move(rhs.results);
     step_ = rhs.step_;
@@ -75,8 +75,6 @@ class Simulation {
 
   void simulateCells();
 
-  void cellDivision();
-
   void updateROIs();
 
   size_t batch_size;
@@ -88,7 +86,7 @@ class Simulation {
   device::buffer<GridView<Site>> lattices;
   device::buffer<ROI> rois;
   device::buffer<uint8_t> border_masks;
-  device::buffer<int> division_ready;
+  device::buffer<uint32_t> occupied;
   CuRandEngineState rand_state;
   device::buffer<uint32_t> results;
   uint32_t step_ = 0;

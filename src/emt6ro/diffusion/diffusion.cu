@@ -30,40 +30,43 @@ __device__ int32_t distance(Coords a, Coords b) {
   return static_cast<int32_t>(ceilf(dist_f));
 }
 
-__device__ uint64_t coords_min(uint64_t lhs, uint64_t rhs) {
-  int32_t r = min(reinterpret_cast<Coords*>(&lhs)->r, reinterpret_cast<Coords*>(&rhs)->r);
-  int32_t c = min(reinterpret_cast<Coords*>(&lhs)->c, reinterpret_cast<Coords*>(&rhs)->c);
-  return Coords{r, c}.encode();
-}
-
-__device__ uint64_t coords_max(uint64_t lhs, uint64_t rhs) {
-  int32_t r = max(reinterpret_cast<Coords*>(&lhs)->r, reinterpret_cast<Coords*>(&rhs)->r);
-  int32_t c = max(reinterpret_cast<Coords*>(&lhs)->c, reinterpret_cast<Coords*>(&rhs)->c);
-  return Coords{r, c}.encode();
-}
-
 __device__ void b() {}
 
+__device__ uint64_t coords_minmax(uint64_t lhs, uint64_t rhs) {
+  auto lhs_mm = Coords2::decode(lhs);
+  auto rhs_mm = Coords2::decode(rhs);
+  Coords2 result;
+  result[0].r = min(lhs_mm[0].r, rhs_mm[0].r);
+  result[0].c = min(lhs_mm[0].c, rhs_mm[0].c);
+  result[1].r = max(lhs_mm[1].r, rhs_mm[1].r);
+  result[1].c = max(lhs_mm[1].c, rhs_mm[1].c);
+  return result.encode();
+}
+
 template <typename F>
-__device__ Coords reduceCoords(GridView<const Site> lattice, 
-                                F &op, Coords zero, void *shared_mem) {
+__device__ Coords2 reduceCoords(GridView<const Site> lattice,
+                                F &op, Coords2 zero,
+                                void *shared_mem) {
   uint64_t coords = zero.encode();
   GRID_FOR(0, 0, lattice.dims.height, lattice.dims.width) {
-    if (lattice(r, c).isOccupied())
-      coords = op(coords, Coords{r, c}.encode());
+    if (lattice(r, c).isOccupied()) {
+      coords = op(coords, Coords2({Coords{r, c}, Coords{r, c}}).encode());
+    }
   }
   
   auto *shm = static_cast<uint64_t*>(shared_mem);
-  return Coords::decode(block_reduce(coords, shm, op));
+  return Coords2::decode(block_reduce(coords, shm, op));
 }
 
 
 __device__ ROI findROI(GridView<const Site> lattice, uint8_t *b_mask_mem,
                        void *shared_mem) {
-  Coords min_ = reduceCoords(lattice, coords_min, 
-                             Coords{lattice.dims.height-1, lattice.dims.width-1}, shared_mem);
-  b();
-  Coords max_ = reduceCoords(lattice, coords_max, Coords{0, 0}, shared_mem);
+  Coords2 zero;
+  zero[0] = Coords{lattice.dims.height, lattice.dims.width};
+  zero[1] = Coords{0, 0};
+  Coords2 min_max = reduceCoords(lattice, coords_minmax, zero, shared_mem);
+  Coords min_ = min_max[0];
+  Coords max_ = min_max[1];
   if (max_.r == 0 && max_.c == 0) return ROI{{0, 0}, {0, 0}};
   Coords mid{};
   mid.r = min_.r + (max_.r - min_.r + 1) / 2;
@@ -79,15 +82,16 @@ __device__ ROI findROI(GridView<const Site> lattice, uint8_t *b_mask_mem,
   }
   auto *sh_d = static_cast<int*>(shared_mem);
   dist = block_reduce(dist, sh_d, [](int a, int b) {return max(a, b);});
-  int32_t sub_r = (mid.r <= dist) ? 1 : mid.r - dist;
-  int32_t sub_c = (mid.c <= dist) ? 1 : mid.c - dist;
-  int32_t sub_w =
+  int16_t sub_r = (mid.r <= dist) ? 1 : mid.r - dist;
+  int16_t sub_c = (mid.c <= dist) ? 1 : mid.c - dist;
+  int16_t sub_w =
       (mid.c + dist >= lattice.dims.width-1) ? lattice.dims.width-1 - sub_c
                                            : mid.c + dist - sub_c + 1;
-  int32_t sub_h =
+  int16_t sub_h =
       (mid.r + dist >= lattice.dims.height-1) ? lattice.dims.height-1 - sub_r
                                             : mid.r + dist - sub_r + 1;
   ROI roi{{sub_r, sub_c}, {sub_h, sub_w}};
+  b();
   GridView<uint8_t> b_mask{b_mask_mem, Dims{sub_h + 2, sub_w + 2}};
   fillBorderMask(b_mask, dist);
   return roi;
@@ -114,7 +118,7 @@ constexpr float HS = 2 * M_SQRT2;
 constexpr float f = 4. + HS;
 
 __device__ Substrates diffusion_differential(const GridView<Substrates> &lattice,
-                                             int32_t r, int32_t c,
+                                             int16_t r, int16_t c,
                                              Substrates coeffs) {
   
   Substrates result = lattice(r - 1, c) + lattice(r, c - 1) +
@@ -130,7 +134,7 @@ __device__ Substrates diffusion_differential(const GridView<Substrates> &lattice
 __global__ void diffusionKernel(GridView<Site> *lattices, const ROI *rois,
                                 const uint8_t *border_masks,
                                 Parameters::Diffusion params,
-                                Substrates external_levels, int32_t steps) {
+                                Substrates external_levels, int16_t steps) {
   extern __shared__ Substrates tmp_mem[];
   auto lattice = lattices[blockIdx.x];
   auto roi = rois[blockIdx.x];
@@ -138,7 +142,7 @@ __global__ void diffusionKernel(GridView<Site> *lattices, const ROI *rois,
   GridView<Substrates> tmp_grid{tmp_mem, bordered_dims};
   Substrates diff[SitesPerThread/4];
   Coords sites[SitesPerThread/4];
-  int nsites=0;
+  int16_t nsites=0;
   GridView<const uint8_t> b_mask{border_masks + lattice.dims.vol() * blockIdx.x, Dims{roi.dims.height + 2, roi.dims.width + 2}};
   GRID_FOR(roi.origin.r-2, roi.origin.c-2,
            roi.origin.r + roi.dims.height+2, roi.origin.c + roi.dims.width+2) {
@@ -156,7 +160,7 @@ __global__ void diffusionKernel(GridView<Site> *lattices, const ROI *rois,
   auto coeffs = (params.coeffs * params.time_step * HS) / f;
   __syncthreads();
   uint8_t subi = 0;
-  for (int32_t i = 0; i < steps - 1; ++i) {
+  for (int16_t i = 0; i < steps - 1; ++i) {
     // subi = 0;
     // GRID_FOR(0, 0, roi.dims.height, roi.dims.width) {
     //   if (!b_mask(r+1, c+1)) {
@@ -174,7 +178,7 @@ __global__ void diffusionKernel(GridView<Site> *lattices, const ROI *rois,
     //   }
     //   ++subi;
     // }
-    for (int i = 0; i < nsites; ++i)
+    for (int16_t i = 0; i < nsites; ++i)
       tmp_grid(sites[i].r, sites[i].c) += diff[i];
     __syncthreads();
   }
@@ -199,7 +203,7 @@ __global__ void diffusionKernel(GridView<Site> *lattices, const ROI *rois,
 }
 
 void batchDiffusion(GridView<Site> *lattices, const ROI *rois, const uint8_t *border_masks,
-                    const Parameters::Diffusion &params, Substrates external_levels, int32_t steps,
+                    const Parameters::Diffusion &params, Substrates external_levels, int16_t steps,
                     Dims dims, int32_t batch_size, cudaStream_t stream) {
   auto shared_mem_size = sizeof(Substrates) * Dims{dims.height+4, dims.width+4}.vol();
   diffusionKernel<<<batch_size, dim3(CuBlockDimX*2, CuBlockDimY*2), shared_mem_size, stream>>>

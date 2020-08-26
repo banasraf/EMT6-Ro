@@ -7,6 +7,7 @@
 #include "emt6ro/diffusion/old-diffusion.h"
 #include "emt6ro/diffusion/diffusion.h"
 #include "emt6ro/state/state.h"
+#include "emt6ro/common/error.h"
 
 namespace emt6ro {
 
@@ -105,6 +106,14 @@ class Experiment {
 
 PYBIND11_MODULE(backend, m) {
   PYBIND11_NUMPY_DTYPE(Substrates, cho, ox, gi);
+  PYBIND11_NUMPY_DTYPE(Coords, r, c);
+
+  py::class_<Coords>(m, "Coords")
+      .def_readwrite("r", &Coords::r)
+      .def_readwrite("c", &Coords::c)
+      .def("__repr__", [](const Coords &self) {
+        return make_string("{r: ", self.r, ", c: ", self.c, "}");
+      });
 
   py::class_<HostGrid<Site>>(m, "TumorState")
       .def_property_readonly("substrates", [](const HostGrid<Site> &self) {
@@ -112,6 +121,29 @@ PYBIND11_MODULE(backend, m) {
         std::array<int64_t, 2> shape{view.dims.height - 2, view.dims.width - 2};
         std::array<int64_t, 2> strides{view.dims.width * sizeof(Site), sizeof(Site)};
         py::array_t<Substrates> result(shape, strides, &view(1, 1).substrates);
+        return result;
+      })
+      .def_property_readonly("state", [](const HostGrid<Site> &self) {
+        auto view = self.view();
+        std::array<int64_t, 2> shape{view.dims.height - 2, view.dims.width - 2};
+        std::array<int64_t, 2> strides{view.dims.width * sizeof(Site), sizeof(Site)};
+        py::array_t<uint8_t> result(shape, strides, reinterpret_cast<const uint8_t*>(&view(1, 1).state));
+      })
+      .def_property_readonly("num_cells", [](const HostGrid<Site> &self) {
+        auto view = self.view();
+        int result = 0;
+        for (int r = 0; r < view.dims.height; ++r)
+          for (int c = 0; c < view.dims.width; ++c)
+            if (view(r, c).isOccupied()) ++result;
+        return result;
+      })
+      .def("find_dividing", [](const HostGrid<Site> &self) {
+        auto view = self.view();
+        std::vector<Coords> result;
+        for (int16_t r = 0; r < view.dims.height; ++r)
+          for (int16_t c = 0; c < view.dims.width; ++c)
+            if (view(r, c).isOccupied())
+              if (view(r, c).cell.phase == Cell::CyclePhase::D) result.push_back(Coords{r, c});
         return result;
       })
       .def("old_diffuse", &oldDiffusion)

@@ -120,7 +120,7 @@ class buffer {
 
   void copyToHost(T *data, size_t count = -1,
                   size_t source_offset = 0, cudaStream_t stream = nullptr) {
-    if (count == -1) count = size_;
+    if (count == static_cast<size_t>(-1)) count = size_;
     cudaMemcpyAsync(data, data_.get() + source_offset, sizeof(T) * count,
                     cudaMemcpyDeviceToHost, stream);
     if (!stream)
