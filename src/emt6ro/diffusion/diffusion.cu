@@ -159,30 +159,15 @@ __global__ void diffusionKernel(GridView<Site> *lattices, const ROI *rois,
   }
   auto coeffs = (params.coeffs * params.time_step * HS) / f;
   __syncthreads();
-  uint8_t subi = 0;
-  for (int16_t i = 0; i < steps - 1; ++i) {
-    // subi = 0;
-    // GRID_FOR(0, 0, roi.dims.height, roi.dims.width) {
-    //   if (!b_mask(r+1, c+1)) {
-    //     diff[subi] = diffusion_differential(tmp_grid, r+2, c+2, params);
-    //   }
-    //   ++subi;
-    // }
-    for (int i = 0; i < nsites; ++i) 
+  for (int16_t s = 0; s < steps - 1; ++s) {
+    for (int16_t i = 0; i < nsites; ++i) 
       diff[i] = diffusion_differential(tmp_grid, sites[i].r, sites[i].c, coeffs);
     __syncthreads();
-    // subi = 0;
-    // GRID_FOR(0, 0, roi.dims.height, roi.dims.width) {
-    //   if (!b_mask(r+1, c+1)) {
-    //     tmp_grid(r+2, c+2) += diff[subi];
-    //   }
-    //   ++subi;
-    // }
     for (int16_t i = 0; i < nsites; ++i)
       tmp_grid(sites[i].r, sites[i].c) += diff[i];
     __syncthreads();
   }
-  subi = 0;
+  uint8_t subi = 0;
   GRID_FOR(0, 0, roi.dims.height, roi.dims.width) {
     diff[subi] = diffusion_differential(tmp_grid, r+2, c+2, coeffs);
     ++subi;

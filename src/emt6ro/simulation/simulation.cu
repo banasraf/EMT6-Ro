@@ -155,7 +155,7 @@ void Simulation::sendData(const HostGrid<Site> &grid, const Protocol &protocol, 
 }
 
 void Simulation::step() {
-  if (step_ % 600 == 0) std::cout << step_ / 600 << std::endl;
+  // if (step_ % 600 == 0) std::cout << step_ / 600 << std::endl;
   if (step_ % 128 == 0) {
     detail::findOccupied
     <<<batch_size, detail::findOccupiedNthreads, 
