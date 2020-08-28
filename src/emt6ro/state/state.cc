@@ -9,9 +9,9 @@ namespace emt6ro {
 HostGrid<Site> loadFromFile(const std::string& filename, const Parameters &parameters) {
   std::fstream file(filename);
   ENFORCE(file.good(), "Could not open the file: ", filename);
-  int32_t h, w;
+  int16_t h, w;
   file >> h >> w;
-  HostGrid<Site> grid({h + 2, w + 2});
+  HostGrid<Site> grid(Dims(h + 2, w + 2));
   auto view = grid.view();
   for (int32_t r = 0; r < h + 2; ++r) {
     for (int32_t c = 0; c < w + 2; ++c) {

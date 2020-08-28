@@ -77,6 +77,8 @@ class Simulation {
 
   void updateROIs();
 
+  int simulate_num_threads = 512;
+
   size_t batch_size;
   Dims dims;
   Parameters params;

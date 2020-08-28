@@ -7,8 +7,7 @@
 #include "emt6ro/common/debug.h"
 #include "emt6ro/common/grid.h"
 #include "emt6ro/diffusion/diffusion.h"
-#include "emt6ro/diffusion/old-diffusion.h"
-#include "emt6ro/division/cell-division.h"
+#include "emt6ro/simulation/cell-division.h"
 #include "emt6ro/simulation/simulation.h"
 #include "emt6ro/statistics/statistics.h"
 #include "emt6ro/common/cuda-utils.h"
@@ -62,8 +61,6 @@ __global__ void findOccupied(GridView<Site> *lattices, uint32_t *occupied_b) {
     n_occupied = acc + n;
 }
 
-__device__ void br() {};
-
 __global__ void cellSimulationKernel(GridView<Site> *grids, uint32_t *occupied_b,
                                      Parameters params, curandState_t *rand_states,
                                      Protocol *protocols, uint32_t step) {
@@ -71,7 +68,7 @@ __global__ void cellSimulationKernel(GridView<Site> *grids, uint32_t *occupied_b
   uint32_t &n_occupied = occupied_b[blockIdx.x * 1024];
   auto *occupied = reinterpret_cast<Coords*>(&n_occupied + 1);
   uint64_t division = 0;
-  uint8_t vacant_neighbours[SitesPerThread];
+  uint8_t vacant_neighbours[4];
   auto &grid = grids[blockIdx.x];
   const auto &protocol = protocols[blockIdx.x];
   curandState_t *rand_state =
@@ -88,7 +85,6 @@ __global__ void cellSimulationKernel(GridView<Site> *grids, uint32_t *occupied_b
   auto dose = protocol.getDose(step);
   for (int i = threadIdx.x; i < n_occupied; i += blockDim.x) {
     auto coords = occupied[i];
-    if (coords.r == 24 && coords.c == 15) br();
     auto &site = grid(coords);
     auto d = site.step(params, vacant_neighbours[subi], dose, rand);
     if (d) {
@@ -123,7 +119,7 @@ void Simulation::populateLattices() {
 
 Simulation::Simulation(uint32_t batch_size, const Parameters &parameters, uint32_t seed)
     : batch_size(batch_size)
-    , dims({parameters.lattice_dims.height+2, parameters.lattice_dims.width+2})
+    , dims(Dims(parameters.lattice_dims.height+2, parameters.lattice_dims.width+2))
     , params(parameters)
     , data(batch_size * dims.vol())
     , protocols(batch_size)
@@ -131,9 +127,9 @@ Simulation::Simulation(uint32_t batch_size, const Parameters &parameters, uint32
     , rois(batch_size)
     , border_masks(batch_size * dims.vol())
     , occupied(batch_size * 1024)
-    , rand_state(batch_size * CuBlockDimX * CuBlockDimY)
+    , rand_state(batch_size * simulate_num_threads)
     , results(batch_size) {
-  std::vector<uint32_t> h_seeds(batch_size * CuBlockDimX * CuBlockDimY);
+  std::vector<uint32_t> h_seeds(batch_size * simulate_num_threads);
   std::mt19937 rand{seed};
   std::generate(h_seeds.begin(), h_seeds.end(), rand);
   auto seeds = device::buffer<uint32_t>::fromHost(h_seeds.data(), h_seeds.size(), str.stream_);
@@ -179,7 +175,7 @@ void Simulation::diffuse() {
 
 void Simulation::simulateCells() {
   detail::cellSimulationKernel
-    <<<batch_size, CuBlockDimX*CuBlockDimY, sizeof(uint64_t)*CuBlockDimX*CuBlockDimY/32, str.stream_>>>
+    <<<batch_size, simulate_num_threads, sizeof(uint64_t)*simulate_num_threads/32, str.stream_>>>
     (lattices.data(), occupied.data(), params, rand_state.states(),
      protocols.data(), step_);
   KERNEL_DEBUG("simulate cells")

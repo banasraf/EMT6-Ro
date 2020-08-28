@@ -3,6 +3,7 @@
 #include <cuda_runtime.h>
 #include <cstdint>
 #include <memory>
+#include <cstring>
 #include <type_traits>
 
 namespace emt6ro {
@@ -11,6 +12,11 @@ struct Dims {
   int16_t height;
   int16_t width;
 
+  __host__ __device__
+  Dims(int16_t h, int16_t w): height(h), width(w) {}
+
+  Dims() = default;
+
   inline __host__ __device__ int32_t vol() const {
     return static_cast<int32_t>(height) * width;
   }
@@ -18,19 +24,18 @@ struct Dims {
   inline __host__ __device__ bool operator==(Dims rhs) {
     return height == rhs.height && width == rhs.width;
   }
-
-  Dims() = default;
-
 };
+
+using std::memcpy;
 
 struct Coords {
   int16_t r;
   int16_t c;
 
+  Coords() = default;
+
   __host__ __device__
-  uint32_t encode() {
-    return (static_cast<uint32_t>(r) << 16) | c;
-  }
+  Coords(int16_t r, int16_t c): r(r), c(c) {}
 
   __host__ __device__
   bool operator==(Coords rhs) {
@@ -42,11 +47,19 @@ struct Coords {
     return r != rhs.r || c != rhs.c;
   }
 
+  __host__ __device__
+  uint32_t encode() {
+    uint32_t result;
+    memcpy(&result, this, sizeof(uint32_t));
+    // result = *reinterpret_cast<uint32_t*>(this);
+    return result;
+  }
+
   static __host__ __device__
   Coords decode(uint32_t d) {
     Coords coords;
-    coords.r = reinterpret_cast<uint16_t*>(&d)[1];
-    coords.c = reinterpret_cast<uint16_t*>(&d)[0];
+    memcpy(&coords, &d, sizeof(uint32_t));
+    // coords = *reinterpret_cast<Coords*>(&d);
     return coords;
   }
 };
@@ -70,16 +83,17 @@ struct Coords2 {
   static __host__ __device__
   Coords2 decode(uint64_t d) {
     Coords2 result;
-    result[0] = Coords::decode(reinterpret_cast<uint32_t*>(&d)[1]);
-    result[1] = Coords::decode(reinterpret_cast<uint32_t*>(&d)[0]);
+    memcpy(&result, &d, sizeof(uint64_t));
+    // result = *reinterpret_cast<Coords2*>(&d);
     return result;
   }
 
   __host__ __device__
   uint64_t encode() {
-    uint64_t a = static_cast<uint64_t>(coords[0].encode()) << 32;
-    uint64_t b = a | static_cast<uint64_t>(coords[1].encode());
-    return b;
+    uint64_t result;
+    memcpy(&result, this, sizeof(uint64_t));
+    // result = *reinterpret_cast<uint64_t*>(this);
+    return result;
   }
 };
 
@@ -90,8 +104,8 @@ struct ROI {
 };
 
 inline ROI bordered(ROI roi, int16_t border = 1) {
-  return ROI{{roi.origin.r - border, roi.origin.c - border}, 
-             {roi.dims.height + border*2, roi.dims.width + border*2}};
+  return ROI{Coords(roi.origin.r - border, roi.origin.c - border), 
+             Dims(roi.dims.height + border*2, roi.dims.width + border*2)};
 }
 
 template <typename T>
@@ -100,6 +114,21 @@ struct GridView {
 
   T *data;
   Dims dims;
+
+  GridView() = default;
+
+  __host__ __device__
+  GridView(T *data, Dims dims): data(data), dims(dims) {};
+
+  template <typename T2, 
+            typename = std::enable_if_t<std::is_same<T_no_cv, T2>::value>>
+  __host__ __device__
+  GridView(T2 *data, Dims dims): data(data), dims(dims) {};
+
+  template <typename T2, 
+            typename = std::enable_if_t<std::is_same<T_no_cv, T2>::value>>
+  __host__ __device__
+  GridView(const GridView<T2> &rhs): data(rhs.data), dims(rhs.dims) {}
 
   inline __host__ __device__  const T& operator()(int16_t r, int16_t c) const {
     return data[r * dims.width + c];
@@ -116,21 +145,6 @@ struct GridView {
   inline __host__ __device__ T& operator()(const Coords &coords) {
     return data[coords.r * dims.width + coords.c];
   }
-
-  GridView() = default;
-
-  __host__ __device__
-  GridView(T *data, Dims dims): data(data), dims(dims) {};
-
-  template <typename T2, 
-            typename = std::enable_if_t<std::is_same<T_no_cv, T2>::value>>
-  __host__ __device__
-  GridView(T2 *data, Dims dims): data(data), dims(dims) {};
-
-  template <typename T2, 
-            typename = std::enable_if_t<std::is_same<T_no_cv, T2>::value>>
-  __host__ __device__
-  GridView(const GridView<T2> &rhs): data(rhs.data), dims(rhs.dims) {}
 };
 
 template <typename T>
