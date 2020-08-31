@@ -48,6 +48,15 @@ __device__ T block_reduce(T val, T *shared_mem, const Op &op, int n = -1) {
   return shared_mem[0];
 }
 
+__device__
+inline int blockVol() {
+  return blockDim.x * blockDim.y * blockDim.z;
 }
 
+__device__
+inline int threadId() {
+  return (threadIdx.z * blockDim.y + threadIdx.y) * blockDim.x + threadIdx.x;
+}
+
+}  // namespace emt6ro
 #endif  // EMT6RO_COMMON_CUDA_UTILS_H_

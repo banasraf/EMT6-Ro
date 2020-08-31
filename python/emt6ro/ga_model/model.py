@@ -47,5 +47,5 @@ class EMT6RoModel:
         results = [experiment.get_results().reshape((1, self.num_protocols, -1)) for experiment in self.experiments]
         results = np.concatenate(results)
         results = results.mean(0).mean(1)
-        fitness = 1000. / results
+        fitness = 1500 - results
         return fitness

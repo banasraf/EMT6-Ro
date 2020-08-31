@@ -71,13 +71,13 @@ using unique_ptr = std::unique_ptr<T, Deleter>;
 template <typename T>
 unique_ptr<T> alloc_unique(size_t count = 1) {
   static_assert(std::is_trivially_constructible<T>::value,
-      "Allocated type must be default constructable.");
+      "Allocated type must be trivially constructable.");
   T *ptr;
   cudaMalloc(&ptr, count * sizeof(T));
   int device_id;
   cudaGetDevice(&device_id);
   return {ptr, Deleter{device_id}};
-}
+};
 
 }  // namespace device
 }  // namespace emt6ro

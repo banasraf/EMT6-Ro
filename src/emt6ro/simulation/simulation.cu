@@ -11,6 +11,7 @@
 #include "emt6ro/simulation/simulation.h"
 #include "emt6ro/statistics/statistics.h"
 #include "emt6ro/common/cuda-utils.h"
+#include "emt6ro/common/stack.cuh"
 
 namespace emt6ro {
 
@@ -65,8 +66,7 @@ __global__ void cellSimulationKernel(GridView<Site> *grids, uint32_t *occupied_b
                                      Parameters params, curandState_t *rand_states,
                                      Protocol *protocols, uint32_t step) {
   extern __shared__ uint64_t shm[];
-  uint32_t &n_occupied = occupied_b[blockIdx.x * 1024];
-  auto *occupied = reinterpret_cast<Coords*>(&n_occupied + 1);
+  StackView<Coords> occupied(&occupied_b[blockIdx.x * 1024]);
   uint64_t division = 0;
   uint8_t vacant_neighbours[4];
   auto &grid = grids[blockIdx.x];
@@ -75,16 +75,14 @@ __global__ void cellSimulationKernel(GridView<Site> *grids, uint32_t *occupied_b
       rand_states + blockDim.x * blockIdx.x + threadIdx.x;
   CuRandEngine rand(rand_state);
   uint8_t subi = 0;
-  for (int i = threadIdx.x; i < n_occupied; i += blockDim.x) {
-    auto coords = occupied[i];
+  for (auto coords : dev_iter(occupied)) {
     vacant_neighbours[subi] = vacantNeighbours(grid, coords.r, coords.c);
     ++subi;
   }
   __syncthreads();
   subi = 0;
   auto dose = protocol.getDose(step);
-  for (int i = threadIdx.x; i < n_occupied; i += blockDim.x) {
-    auto coords = occupied[i];
+  for (auto coords : dev_iter(occupied)) {
     auto &site = grid(coords);
     auto d = site.step(params, vacant_neighbours[subi], dose, rand);
     if (d) {
@@ -102,7 +100,7 @@ __global__ void cellSimulationKernel(GridView<Site> *grids, uint32_t *occupied_b
     auto child = coords[1];
     grid(child).state = Site::State::OCCUPIED;
     grid(child).cell = divideCell(grid(parent).cell, params, rand);
-    occupied[n_occupied++] = child;
+    occupied.push(child);
   }
 }
 
