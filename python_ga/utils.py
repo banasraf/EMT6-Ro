@@ -3,11 +3,13 @@ import os
 import yaml
 
 
+# ==DOSE TIME CONSTRAINT UTILS==========================================================================================
 def assign_dose_within_time_constraint(
     doses_time_steps: list,
     time_steps: np.ndarray,
     time_interval_steps: int,
 ):
+    """Obliczenie czasu dawki w przypadku obostrzeń czasowych."""
     allowed_time_steps = time_steps.copy()
     for dose_time_step in doses_time_steps:
         lower_constraint = max(dose_time_step - time_interval_steps, 0)
@@ -22,6 +24,78 @@ def assign_dose_within_time_constraint(
     return None
 
 
+def refine_genome_around_cross_point_to_time_constraint(genome: list, interval_in_indices: int):
+    """
+    Zmiana istniejącego genomu do postaci zgodnej z narzuconymi obostrzeniami czasowymi dla niezerowych dawek.
+    Szczególnie istotne przy mutacji, działa na zasadzie wywoływań rekurencyjnych,
+    rozwiązujac problem dla każej z niezerowych dawek z osobna.
+
+    Do użytku z:
+    * crossover one point
+    * crossover two points
+    * mutations of all types
+    """
+
+    def check_first_dose_can_be_moved_earlier():
+        return position_of_wrong_dose == 0 and first_dose_index >= no_of_indices_to_move_dose
+
+    def check_not_first_dose_can_be_moved_earlier():
+        return position_of_wrong_dose > 0 and \
+               intervals_between_doses[position_of_wrong_dose - 1] >= interval_in_indices + no_of_indices_to_move_dose
+
+    def check_last_dose_can_be_moved_later():
+        return len(non_zero_dose_indices) == position_of_wrong_dose + 1 and \
+               len(genome) - second_dose_index > no_of_indices_to_move_dose
+
+    def check_not_last_dose_can_be_moved_later():
+        return len(non_zero_dose_indices) > position_of_wrong_dose + 2 and \
+               non_zero_dose_indices[position_of_wrong_dose + 2] - second_dose_index >= \
+               interval_in_indices + no_of_indices_to_move_dose
+
+    def move_first_dose():
+        genome[first_dose_index - no_of_indices_to_move_dose] = genome[first_dose_index]
+        genome[first_dose_index] = 0
+
+    def move_second_dose():
+        genome[second_dose_index + no_of_indices_to_move_dose] = genome[second_dose_index]
+        genome[second_dose_index] = 0
+
+    genome = np.array(genome)
+    non_zero_dose_indices = np.argwhere(genome > 0)[:, 0]
+    intervals_between_doses = np.diff(non_zero_dose_indices)
+    if not (intervals_between_doses < interval_in_indices).any():
+        # if time intervals between non-zero doses are above the threshold
+        return list(genome)
+
+    # relative position of non-zero dose which is too close to the next
+    position_of_wrong_dose = np.argwhere(intervals_between_doses < interval_in_indices + 1)[0][0]
+
+    first_dose_index = non_zero_dose_indices[position_of_wrong_dose]
+    second_dose_index = non_zero_dose_indices[position_of_wrong_dose + 1]
+
+    no_of_indices_to_move_dose = interval_in_indices - (second_dose_index - first_dose_index)
+
+    if check_first_dose_can_be_moved_earlier():
+        move_first_dose()
+    elif check_not_first_dose_can_be_moved_earlier():
+        move_first_dose()
+    else:
+        if check_last_dose_can_be_moved_later():
+            move_second_dose()
+        elif check_not_last_dose_can_be_moved_later():
+            move_second_dose()
+        else:
+            # if cannot move the non-zero dose, erase it
+            genome[second_dose_index] = 0
+
+    # recursion
+    genome = refine_genome_around_cross_point_to_time_constraint(
+        genome=list(genome), interval_in_indices=interval_in_indices)
+
+    return list(genome)
+
+
+# ==RANDOM PROTOCOL INITIALIZATION======================================================================================
 def get_random_protocol(
     min_dose: float = 0.25,
     max_dose: float = 10.0,
@@ -30,6 +104,7 @@ def get_random_protocol(
     time_steps: np.ndarray = None,
     time_interval_steps: int = 1800,
 ):
+    """Tworzenie pojedynczego, losowego protokołu dla ekspermentu."""
     protocol_dose = 0
     max_protocol_value = max_dose_value
     protocol_pair = []
@@ -67,6 +142,7 @@ def get_rand_population(
         available_hours: int = 24 * 5,
         time_interval_hours: float = 3.0,
 ):
+    """Tworzenie losowoej populacji protokołów dla eksperymentu."""
     time_steps = np.arange(0, available_hours * hour_steps, protocol_resolution)
     time_interval_steps = int(hour_steps * time_interval_hours)
     protocol_pairs = []
@@ -84,7 +160,9 @@ def get_rand_population(
     return protocol_pairs
 
 
+# ==REPRESENTATION CONVERTER============================================================================================
 class ConvertRepresentation:
+    """Konwerter reprezentacji protokołów."""
     NUMBER_OF_DAYS = 5
 
     def __init__(self, hour_steps, protocol_resolution):
@@ -115,17 +193,19 @@ class ConvertRepresentation:
         ]
 
 
+# ==PREDICTION MODEL WRAPPER============================================================================================
 class ModelWrapper:
     def __init__(self, model, converter):
         self.model = model
         self.converter = converter
 
     def predict(self, population):
-        converted = [self.converter.convert_list_to_pairs(p) for p in population]
-        return self.model.predict(converted)
+        return self.model.predict(population)
 
 
+# ==OUTPUT SAVING=======================================================================================================
 def save_output(file: any, file_name: str, extension: str = 'csv', config=None):
+    """Zapis plików wyjściowych dla eksperymentu według rozszerzeń."""
     saving_directory = resolve_saving_path(config=config)
     saving_path = f'{saving_directory}/{file_name}.{extension}'
 
@@ -137,6 +217,7 @@ def save_output(file: any, file_name: str, extension: str = 'csv', config=None):
 
 
 def resolve_saving_path(path: str = 'experiment_results', config=None):
+    """Stworzenie ścieżki do zapisu plików wyjsciowych eksperymentu."""
     if config:
         sub_path = f'{os.path.basename(config["config_path"]).split(".")[0]}_{config["experiment_time"]}'
         path = os.path.join(path, sub_path)
@@ -148,16 +229,52 @@ def resolve_saving_path(path: str = 'experiment_results', config=None):
     return saving_directory
 
 
+# ==CONFIG FILE READER==================================================================================================
 def read_config(config_path: str):
+    """Odczyt konfiguracji z pliku Yaml."""
     with open(config_path, 'r') as file:
         config = yaml.load(file, yaml.FullLoader)
     return config
 
 
+# ==PROBABILITY ANNEALING===============================================================================================
 def calculate_probability_annealing(iteration, max_value=0.5, max_iter=100, eps=0.001, rounding_decimal=6):
+    """Symulowanie wyżarzanie."""
     def formula(x):
+        """Formuła do obliczenia prawdopodobieństw przy wyżarzaniu."""
         result = np.round((x ** 4) * max_value, rounding_decimal)
         return result if result >= eps else eps
 
     x = 1 - iteration / max_iter
     return formula(x)
+
+
+# ==FITNESS CALCULATION=================================================================================================
+def calculate_fitness(paired_population, model):
+    """
+    Metoda odpowiada za obliczenie wartości funkcji dopasowania dla osobników w populacji, przy użyciu wybranego modelu.
+    Otrzymany wynik przekształcany jest do tablicy jednowymiarowej.
+    :param paired_population:       list
+    :param model:                   fitness model
+    :return: pop_fitness:           list
+    :return: paired_population:     list
+    """
+
+    pop_fitness = model.predict(paired_population)
+    pop_fitness = pop_fitness.reshape(len(paired_population))
+    return pop_fitness
+
+
+def store_fitness_and_populations(
+        all_fitness: list, all_populations: list, fitness: np.ndarray, paired_population: np.ndarray):
+    """
+    Metoda do zapisu wszystkich wartości funkcji fitness oraz wszystkich populacji protokołów.
+    :param all_fitness:             all fitness values.
+    :param all_populations:         all populations.
+    :param fitness:                 last fitness.
+    :param paired_population:       last population in paired representation.
+    :return: updated list of all populations
+    """
+    all_fitness.append(list(fitness))
+    all_populations.append(paired_population)
+    return all_fitness, all_populations
