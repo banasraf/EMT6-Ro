@@ -51,7 +51,7 @@ __device__ Coords2 reduceCoords(GridView<const Site> lattice,
       coords = op(coords, Coords2({Coords(r, c), Coords(r, c)}).encode());
     }
   }
-  
+
   auto *shm = static_cast<uint64_t*>(shared_mem);
   return Coords2::decode(block_reduce(coords, shm, op));
 }
@@ -117,7 +117,6 @@ constexpr float f = 4. + HS;
 __device__ Substrates diffusion_differential(const GridView<Substrates> &lattice,
                                              int16_t r, int16_t c,
                                              Substrates coeffs) {
-  
   Substrates result = lattice(r - 1, c) + lattice(r, c - 1) +
                       lattice(r + 1, c) + lattice(r, c + 1);
   result += (lattice(r - 1, c - 1) + lattice(r - 1, c + 1)  +
@@ -139,17 +138,18 @@ __global__ void diffusionKernel(GridView<Site> *lattices, const ROI *rois,
   GridView<Substrates> tmp_grid{tmp_mem, bordered_dims};
   Substrates diff[SitesPerThread/4];
   Coords sites[SitesPerThread/4];
-  int16_t nsites=0;
-  GridView<const uint8_t> b_mask{border_masks + lattice.dims.vol() * blockIdx.x, Dims(roi.dims.height + 2, roi.dims.width + 2)};
+  int16_t nsites = 0;
+  GridView<const uint8_t> b_mask{border_masks + lattice.dims.vol() * blockIdx.x,
+                                 Dims(roi.dims.height + 2, roi.dims.width + 2)};
   GRID_FOR(roi.origin.r-2, roi.origin.c-2,
            roi.origin.r + roi.dims.height+2, roi.origin.c + roi.dims.width+2) {
     auto dr = r - roi.origin.r + 2;
     auto dc = c - roi.origin.c + 2;
-    if (dr == 0 || dr == bordered_dims.height-1 || dc == 0 || dc == bordered_dims.width-1)
+    if (dr == 0 || dr == bordered_dims.height-1 || dc == 0 || dc == bordered_dims.width-1) {
       tmp_grid(dr, dc) = {0.f, 0.f, 0.f};
-    else if (b_mask(dr-1, dc-1))
+    } else if (b_mask(dr-1, dc-1)) {
       tmp_grid(dr, dc) = external_levels;
-    else {
+    } else {
       tmp_grid(dr, dc) = lattice(r, c).substrates;
       sites[nsites++] = Coords(dr, dc);
     }
@@ -157,7 +157,7 @@ __global__ void diffusionKernel(GridView<Site> *lattices, const ROI *rois,
   auto coeffs = (params.coeffs * params.time_step * HS) / f;
   __syncthreads();
   for (int16_t s = 0; s < steps - 1; ++s) {
-    for (int16_t i = 0; i < nsites; ++i) 
+    for (int16_t i = 0; i < nsites; ++i)
       diff[i] = diffusion_differential(tmp_grid, sites[i].r, sites[i].c, coeffs);
     __syncthreads();
     for (int16_t i = 0; i < nsites; ++i)

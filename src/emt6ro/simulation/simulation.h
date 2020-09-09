@@ -1,6 +1,7 @@
 #ifndef EMT6RO_SIMULATION_SIMULATION_H_
 #define EMT6RO_SIMULATION_SIMULATION_H_
 
+#include <utility>
 #include "emt6ro/common/random-engine.h"
 #include "emt6ro/common/device-buffer.h"
 #include "emt6ro/common/grid.h"
@@ -12,7 +13,7 @@ namespace emt6ro {
 class Simulation {
  public:
   Simulation(uint32_t batch_size, const Parameters &parameters, uint32_t seed);
-  
+
   Simulation& operator=(Simulation &&rhs) {
     if (&rhs == this)
       return *this;
@@ -31,7 +32,7 @@ class Simulation {
     str = std::move(rhs.str);
     return *this;
   }
- 
+
   /**
    * Send simulation data to GPU.
    * @param grid - tumor data

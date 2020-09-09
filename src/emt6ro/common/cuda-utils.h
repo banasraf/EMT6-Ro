@@ -11,13 +11,13 @@ static constexpr uint32_t CuBlockDimX = 16;
 static constexpr uint32_t CuBlockDimY = 16;
 static constexpr uint32_t SitesPerThread = 16;
 
-template <typename L, 
+template <typename L,
           typename R,
           bool enable = std::is_integral<L>::value && std::is_integral<R>::value,
-          typename=std::enable_if_t<enable>>
+          typename = std::enable_if_t<enable>>
 __device__ __host__
 L div_ceil(L lhs, R rhs) {
-  return (lhs + rhs - 1) / rhs; 
+  return (lhs + rhs - 1) / rhs;
 }
 
 /// The first thread in a warp returns a reduced value

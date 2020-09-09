@@ -35,11 +35,6 @@ static void experiment(uint32_t steps) {
   simulation.sendData(state, protocol, BATCH_SIZE);
   std::vector<uint32_t> results(BATCH_SIZE);
   auto start = std::chrono::steady_clock::now();
-  // buffer<unsigned> ind(1);
-  // buffer<emt6ro::Coords> mem(50);
-  // emt6ro::DeviceStore<emt6ro::Coords> ds(mem.data(), ind.data(), 50);
-  // for (int s = 0; s < 5; ++s)
-    // simulation.step();
   simulation.run(steps);
   simulation.getResults(results.data());
   auto end = std::chrono::steady_clock::now();
@@ -57,13 +52,6 @@ static void experiment(uint32_t steps) {
   emt6ro::saveToFile(state, "tumor-4-" + std::to_string(steps) + ".txt");
   std::cout << "mean: " << avg << std::endl;
   std::cout << "var: " << var << std::endl;
-  // auto ind_h = ind.toHost();
-  // auto mem_h = mem.toHost();
-  // for (unsigned i = 0; i < ind_h[0]; ++i) {
-  //   std::cout << mem_h[i].r << " " << mem_h[i].c << " " 
-  //   << int(view(mem_h[i].r, mem_h[i].c).cell.phase) << std::endl;
-  // }
-
 }
 
 int main(int argc, char **argv) {

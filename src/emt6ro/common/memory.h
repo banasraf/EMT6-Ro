@@ -3,7 +3,7 @@
 
 #include <cuda_runtime_api.h>
 #include <memory>
-#include "debug.h"
+#include "emt6ro/common/debug.h"
 
 namespace emt6ro {
 namespace device {
@@ -81,7 +81,7 @@ unique_ptr<T> alloc_unique(size_t count = 1) {
   int device_id;
   cudaGetDevice(&device_id);
   return {ptr, Deleter{device_id}};
-};
+}
 
 }  // namespace device
 }  // namespace emt6ro

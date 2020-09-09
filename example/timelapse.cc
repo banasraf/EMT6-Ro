@@ -61,18 +61,13 @@ class Timelapse {
 static void experiment(uint32_t batch_size) {
   uint32_t BATCH_SIZE = batch_size;
   auto params = Parameters::loadFromJSONFile("data/default-parameters.json");
-  auto state = emt6ro::loadFromFile("ddata/tumor-lib/tumor-4.txt", params);
+  auto state = emt6ro::loadFromFile("data/tumor-lib/tumor-4.txt", params);
   std::vector<float> protocol_data_h(10 * 24 * HOUR_STEPS / PROTOCOL_RES);  // 5 days protocol
   protocol_data_h[3601 / PROTOCOL_RES] = 2.5;  
   protocol_data_h[11701 / PROTOCOL_RES] = 0.5;  
   protocol_data_h[16501  / PROTOCOL_RES] = 2;  
   protocol_data_h[17101  / PROTOCOL_RES] = 2.25;  
   protocol_data_h[43501  / PROTOCOL_RES] = 0.5;  
-  // protocol_data_h[(24*3 +  8) * HOUR_STEPS / PROTOCOL_RES] = 1.25;  
-  // protocol_data_h[        16  * HOUR_STEPS / PROTOCOL_RES] = 1.25;  
-  // protocol_data_h[(24   + 16) * HOUR_STEPS / PROTOCOL_RES] = 1.25;  
-  // protocol_data_h[(24*2 + 16) * HOUR_STEPS / PROTOCOL_RES] = 1.25;  
-  // protocol_data_h[(24*3 + 16) * HOUR_STEPS / PROTOCOL_RES] = 1.25;  
   auto protocol_data =
       buffer<float>::fromHost(protocol_data_h.data(), 10 * 24 * HOUR_STEPS / PROTOCOL_RES);
   Protocol protocol{PROTOCOL_RES, SIM_LENGTH, protocol_data.data()};

@@ -1,8 +1,8 @@
 #include "emt6ro/state/state.h"
-#include "emt6ro/common/error.h"
 #include <fstream>
 #include <cassert>
 #include <iostream>
+#include "emt6ro/common/error.h"
 
 namespace emt6ro {
 
@@ -62,7 +62,7 @@ void saveToFile(const HostGrid<Site> &state, const std::string &filename) {
     for (int32_t c = 1; c < w + 1; ++c) {
       const auto &site = view(r, c);
       file << static_cast<int>(site.isOccupied()) << "\n";
-      file << site.substrates.cho << "\n" << site.substrates.ox << "\n" 
+      file << site.substrates.cho << "\n" << site.substrates.ox << "\n"
            << site.substrates.gi  << "\n";
       if (site.isOccupied()) {
         const auto &cell = site.cell;

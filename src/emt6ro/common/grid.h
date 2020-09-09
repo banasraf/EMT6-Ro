@@ -1,10 +1,12 @@
 #ifndef EMT6RO_COMMON_GRID_H_
 #define EMT6RO_COMMON_GRID_H_
+
 #include <cuda_runtime.h>
 #include <cstdint>
 #include <memory>
 #include <cstring>
 #include <type_traits>
+#include <algorithm>
 
 namespace emt6ro {
 
@@ -41,7 +43,7 @@ struct Coords {
   bool operator==(Coords rhs) {
     return r == rhs.r && c == rhs.c;
   }
-  
+
   __host__ __device__
   bool operator!=(Coords rhs) {
     return r != rhs.r || c != rhs.c;
@@ -51,7 +53,6 @@ struct Coords {
   uint32_t encode() {
     uint32_t result;
     memcpy(&result, this, sizeof(uint32_t));
-    // result = *reinterpret_cast<uint32_t*>(this);
     return result;
   }
 
@@ -59,7 +60,6 @@ struct Coords {
   Coords decode(uint32_t d) {
     Coords coords;
     memcpy(&coords, &d, sizeof(uint32_t));
-    // coords = *reinterpret_cast<Coords*>(&d);
     return coords;
   }
 };
@@ -104,7 +104,7 @@ struct ROI {
 };
 
 inline ROI bordered(ROI roi, int16_t border = 1) {
-  return ROI{Coords(roi.origin.r - border, roi.origin.c - border), 
+  return ROI{Coords(roi.origin.r - border, roi.origin.c - border),
              Dims(roi.dims.height + border*2, roi.dims.width + border*2)};
 }
 
@@ -118,14 +118,14 @@ struct GridView {
   GridView() = default;
 
   __host__ __device__
-  GridView(T *data, Dims dims): data(data), dims(dims) {};
+  GridView(T *data, Dims dims): data(data), dims(dims) {}
 
-  template <typename T2, 
+  template <typename T2,
             typename = std::enable_if_t<std::is_same<T_no_cv, T2>::value>>
   __host__ __device__
-  GridView(T2 *data, Dims dims): data(data), dims(dims) {};
+  GridView(T2 *data, Dims dims): data(data), dims(dims) {}
 
-  template <typename T2, 
+  template <typename T2,
             typename = std::enable_if_t<std::is_same<T_no_cv, T2>::value>>
   __host__ __device__
   GridView(const GridView<T2> &rhs): data(rhs.data), dims(rhs.dims) {}

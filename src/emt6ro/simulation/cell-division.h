@@ -1,5 +1,5 @@
-#ifndef EMT6RO_DIVISION_CELL_DIVISION_H_
-#define EMT6RO_DIVISION_CELL_DIVISION_H_
+#ifndef EMT6RO_SIMULATION_CELL_DIVISION_H_
+#define EMT6RO_SIMULATION_CELL_DIVISION_H_
 
 #include <cmath>
 #include "emt6ro/common/random-engine.h"
@@ -55,4 +55,4 @@ __host__ __device__ Coords chooseNeighbour(uint32_t r, uint32_t c, R &rand) {
 
 }  // namespace emt6ro
 
-#endif  // EMT6RO_DIVISION_CELL_DIVISION_H_
+#endif  // EMT6RO_SIMULATION_CELL_DIVISION_H_

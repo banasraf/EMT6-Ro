@@ -1,8 +1,8 @@
 #ifndef EMT6RO_SITE_SITE_H_
 #define EMT6RO_SITE_SITE_H_
 
-#include <cstdint>
 #include <cuda_runtime.h>
+#include <cstdint>
 #include "emt6ro/cell/cell.h"
 #include "emt6ro/parameters/parameters.h"
 

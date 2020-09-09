@@ -37,12 +37,12 @@ __host__ __device__ uint8_t vacantNeighbours(const GridView<Site> &grid, int16_t
          grid(r + 1, c).isVacant();
 }
 
-constexpr int findOccupiedNthreads = 32;
+static const int kFindOccupiedNthreads = 32;
 __global__ void findOccupied(GridView<Site> *lattices, uint32_t *occupied_b) {
   extern __shared__ uint32_t shmem[];
   auto lattice = lattices[blockIdx.x];
   uint32_t n = 0;
-  Coords collection[1024 / findOccupiedNthreads];
+  Coords collection[1024 / kFindOccupiedNthreads];
   GRID_FOR(0, 0, lattice.dims.height - 1, lattice.dims.width - 1) {
     if (lattice(r, c).isOccupied()) {
       collection[n++] = Coords{r, c};
@@ -93,10 +93,11 @@ __global__ void cellSimulationKernel(GridView<Site> *grids, uint32_t *occupied_b
     }
     ++subi;
   }
-  division = block_reduce(division, shm, [](uint64_t a, uint64_t b){return a | (b * (uint64_t)(!  a));});
+  division = block_reduce(division, shm,
+                          [](uint64_t a, uint64_t b){return a | (b * (uint64_t)(!a));});
   if (threadIdx.x == 0 && division) {
     Coords2 coords = Coords2::decode(division);
-    auto parent = coords[0];  
+    auto parent = coords[0];
     auto child = coords[1];
     grid(child).state = Site::State::OCCUPIED;
     grid(child).cell = divideCell(grid(parent).cell, params, rand);
@@ -149,11 +150,10 @@ void Simulation::sendData(const HostGrid<Site> &grid, const Protocol &protocol, 
 }
 
 void Simulation::step() {
-  // if (step_ % 600 == 0) std::cout << step_ / 600 << std::endl;
   if (step_ % 128 == 0) {
     detail::findOccupied
-    <<<batch_size, detail::findOccupiedNthreads, 
-       detail::findOccupiedNthreads * sizeof(uint32_t), str.stream_>>>
+    <<<batch_size, detail::kFindOccupiedNthreads,
+       detail::kFindOccupiedNthreads * sizeof(uint32_t), str.stream_>>>
     (lattices.data(), occupied.data());
   }
   if (step_ % 32 == 0) {
