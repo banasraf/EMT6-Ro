@@ -9,7 +9,7 @@ void findROIs(ROI *rois, uint8_t *border_masks, const GridView<Site> *lattices,
               int32_t batch_size, cudaStream_t stream = nullptr);
 
 void batchDiffusion(GridView<Site> *lattices, const ROI *rois, const uint8_t *border_masks,
-                    const Parameters::Diffusion &params, Substrates external_levels, int32_t steps,
+                    const Parameters::Diffusion &params, Substrates external_levels, int16_t steps,
                     Dims dims, int32_t batch_size, cudaStream_t stream = nullptr);
 
 }

@@ -15,7 +15,7 @@ json parseFile(const std::string &file_name) {
 }
 
 Dims readDims(const json &obj) {
-  return {obj["height"].get<int32_t>(), obj["width"].get<int32_t>()};
+  return {obj["height"].get<int16_t>(), obj["width"].get<int16_t>()};
 }
 
 Substrates readSubstrates(const json &obj) {

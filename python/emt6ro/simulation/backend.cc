@@ -1,9 +1,12 @@
 #include <pybind11/pybind11.h>
 #include <pybind11/stl.h>
+#include <pybind11/numpy.h>
 #include <future>
 #include <algorithm>
 #include "emt6ro/simulation/simulation.h"
+#include "emt6ro/diffusion/diffusion.h"
 #include "emt6ro/state/state.h"
+#include "emt6ro/common/error.h"
 
 namespace emt6ro {
 
@@ -101,6 +104,16 @@ class Experiment {
 };
 
 PYBIND11_MODULE(backend, m) {
+  PYBIND11_NUMPY_DTYPE(Substrates, cho, ox, gi);
+  PYBIND11_NUMPY_DTYPE(Coords, r, c);
+
+  py::class_<Coords>(m, "Coords")
+      .def_readwrite("r", &Coords::r)
+      .def_readwrite("c", &Coords::c)
+      .def("__repr__", [](const Coords &self) {
+        return make_string("{r: ", self.r, ", c: ", self.c, "}");
+      });
+
   py::class_<HostGrid<Site>>(m, "TumorState");
 
   py::class_<Parameters>(m, "Parameters");

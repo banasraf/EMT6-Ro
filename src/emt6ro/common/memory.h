@@ -3,35 +3,10 @@
 
 #include <cuda_runtime_api.h>
 #include <memory>
+#include "emt6ro/common/debug.h"
 
 namespace emt6ro {
 namespace device {
-
-struct Stream {
-  cudaStream_t stream_;
-
-  Stream() {
-    cudaStreamCreate(&stream_);
-  }
-
-  Stream(Stream &&rhs) {
-    stream_ = rhs.stream_;
-    rhs.stream_ = 0;
-  }
-
-  Stream& operator=(Stream &&rhs) {
-    if (&rhs == this)
-      return *this;
-    cudaStreamDestroy(stream_);
-    stream_ = rhs.stream_;
-    rhs.stream_ = 0;
-    return *this;
-  }
-
-  ~Stream() {
-    cudaStreamDestroy(stream_);
-  }
-};
 
 class Guard {
   int previous_id{};
@@ -44,6 +19,44 @@ class Guard {
 
   ~Guard() {
     cudaSetDevice(previous_id);
+  }
+};
+
+
+struct Stream {
+  cudaStream_t stream_;
+  int device_id_;
+
+  Stream() {
+    cudaGetDevice(&device_id_);
+    cudaStreamCreate(&stream_);
+  }
+
+  Stream(Stream &&rhs): stream_(rhs.stream_) {
+    rhs.stream_ = 0;
+  }
+
+  Stream& operator=(Stream &&rhs) {
+    if (&rhs != this) {
+      Release();
+      stream_ = rhs.stream_;
+      rhs.stream_ = 0;
+    }
+    return *this;
+  }
+
+  ~Stream() {
+    Release();
+  }
+
+ private:
+  void Release() {
+    if (stream_) {
+      Guard dg(device_id_);
+      cudaStreamSynchronize(stream_);
+      cudaStreamDestroy(stream_);
+      KERNEL_DEBUG("stream destroy");
+    }
   }
 };
 
@@ -62,7 +75,7 @@ using unique_ptr = std::unique_ptr<T, Deleter>;
 template <typename T>
 unique_ptr<T> alloc_unique(size_t count = 1) {
   static_assert(std::is_trivially_constructible<T>::value,
-      "Allocated type must be default constructable.");
+      "Allocated type must be trivially constructable.");
   T *ptr;
   cudaMalloc(&ptr, count * sizeof(T));
   int device_id;

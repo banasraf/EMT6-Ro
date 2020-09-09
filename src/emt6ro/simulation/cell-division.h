@@ -1,5 +1,5 @@
-#ifndef EMT6RO_DIVISION_CELL_DIVISION_H_
-#define EMT6RO_DIVISION_CELL_DIVISION_H_
+#ifndef EMT6RO_SIMULATION_CELL_DIVISION_H_
+#define EMT6RO_SIMULATION_CELL_DIVISION_H_
 
 #include <cmath>
 #include "emt6ro/common/random-engine.h"
@@ -29,16 +29,16 @@ __host__ __device__ Cell divideCell(Cell &cell, const Parameters &params, R &ran
   return new_cell;
 }
 
-__host__ __device__ static inline Coords mapToDiagNeighbour(int32_t r, int32_t c, uint8_t num) {
+__host__ __device__ static inline Coords mapToDiagNeighbour(int16_t r, int16_t c, uint8_t num) {
   const int8_t vert = (num & 1U) * 2 - 1;
   const int8_t hor = ((num & 2U) >> 1U) * 2 - 1;
-  return {r + vert, c + hor};
+  return Coords(r + vert, c + hor);
 }
 
-__host__ __device__ static inline Coords mapToOrthoNeighbour(int32_t r, int32_t c, uint8_t num) {
+__host__ __device__ static inline Coords mapToOrthoNeighbour(int16_t r, int16_t c, uint8_t num) {
   const bool which = num & 1U;
   const int8_t diff = ((num & 2U) >> 1U) * 2 - 1;
-  return which ? Coords{r + diff, c} : Coords{r, c + diff};
+  return which ? Coords(r + diff, c) : Coords(r, c + diff);
 }
 
 template <typename R>
@@ -53,12 +53,6 @@ __host__ __device__ Coords chooseNeighbour(uint32_t r, uint32_t c, R &rand) {
   }
 }
 
-__device__ void divideCells(GridView<Site> &lattice, const Parameters &params, CuRandEngine &rand);
-
-void batchCellDivision(GridView<Site> *lattices, Parameters params, const bool *division_ready,
-                       curandState_t *rand_states, int32_t batch_size,
-                       cudaStream_t stream = nullptr);
-
 }  // namespace emt6ro
 
-#endif  // EMT6RO_DIVISION_CELL_DIVISION_H_
+#endif  // EMT6RO_SIMULATION_CELL_DIVISION_H_

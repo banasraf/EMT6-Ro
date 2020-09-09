@@ -1,4 +1,0 @@
-add_sources(EMT6RO_SOURCES)
-add_test_sources(EMT6RO_TESTS_SOURCES)
-add_headers(EMT6RO_HEADERS)
-add_bench_sources(EMT6RO_BENCH_SOURCES)

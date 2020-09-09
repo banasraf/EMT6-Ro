@@ -1,4 +1,5 @@
 #include "emt6ro/common/random-engine.h"
+#include "emt6ro/common/cuda-utils.h"
 
 namespace emt6ro {
 
@@ -11,9 +12,10 @@ __global__ void initializeState(curandState_t *state, const uint32_t *seeds, siz
 }
 
 void init(curandState_t *state_data, const uint32_t *seeds, size_t size, cudaStream_t stream) {
-  size_t block_size = (size > 1024) ? 1024 : size;
-  size_t grid_size = (size + block_size - 1) / block_size;
-  detail::initializeState<<<grid_size, block_size, 0, stream>>>(state_data, seeds, size);
+  auto mbs = CuBlockDimX * CuBlockDimY;
+  auto blocks = div_ceil(size, mbs);
+  auto block_size = (size > mbs) ? mbs : size;
+  detail::initializeState<<<blocks, block_size, 0, stream>>>(state_data, seeds, size);
 }
 
 }  // namespace detail

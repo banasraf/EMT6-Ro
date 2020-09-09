@@ -1,6 +1,7 @@
 #ifndef EMT6RO_SIMULATION_SIMULATION_H_
 #define EMT6RO_SIMULATION_SIMULATION_H_
 
+#include <utility>
 #include "emt6ro/common/random-engine.h"
 #include "emt6ro/common/device-buffer.h"
 #include "emt6ro/common/grid.h"
@@ -12,7 +13,7 @@ namespace emt6ro {
 class Simulation {
  public:
   Simulation(uint32_t batch_size, const Parameters &parameters, uint32_t seed);
-  
+
   Simulation& operator=(Simulation &&rhs) {
     if (&rhs == this)
       return *this;
@@ -24,14 +25,14 @@ class Simulation {
     lattices = std::move(rhs.lattices);
     rois = std::move(rhs.rois);
     border_masks = std::move(rhs.border_masks);
-    division_ready = std::move(rhs.division_ready);
+    occupied = std::move(rhs.occupied);
     rand_state = std::move(rhs.rand_state);
     results = std::move(rhs.results);
     step_ = rhs.step_;
     str = std::move(rhs.str);
     return *this;
   }
- 
+
   /**
    * Send simulation data to GPU.
    * @param grid - tumor data
@@ -66,18 +67,18 @@ class Simulation {
     return str.stream_;
   }
 
+  void step();
+
  private:
   void populateLattices();
-
-  void step();
 
   void diffuse();
 
   void simulateCells();
 
-  void cellDivision();
-
   void updateROIs();
+
+  int simulate_num_threads = 512;
 
   size_t batch_size;
   Dims dims;
@@ -88,7 +89,7 @@ class Simulation {
   device::buffer<GridView<Site>> lattices;
   device::buffer<ROI> rois;
   device::buffer<uint8_t> border_masks;
-  device::buffer<bool> division_ready;
+  device::buffer<uint32_t> occupied;
   CuRandEngineState rand_state;
   device::buffer<uint32_t> results;
   uint32_t step_ = 0;

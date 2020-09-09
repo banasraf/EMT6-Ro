@@ -4,8 +4,15 @@ set(CMAKE_CXX_STANDARD 14)
 set(CMAKE_CUDA_STANDARD 14)
 
 include_directories(${CMAKE_CUDA_TOOLKIT_INCLUDE_DIRECTORIES})
+
 add_compile_options($<$<COMPILE_LANGUAGE:CUDA>:-dc>)
+option(CUDA_DEBUG OFF)
+add_compile_options($<$<AND:$<COMPILE_LANGUAGE:CUDA>,$<BOOL:${CUDA_DEBUG}>>:-G>)
+if(CUDA_DEBUG)
+    message("-- CUDA DEBUG ENABLED")
+endif(CUDA_DEBUG)
 set(CMAKE_POSITION_INDEPENDENT_CODE ON)
+add_compile_options($<$<CONFIG:DEBUG>:-O0>)
 
 add_custom_target(lint
         COMMAND ${PROJECT_SOURCE_DIR}/tools/cpplint.py --root=${PROJECT_SOURCE_DIR}/src --recursive ${PROJECT_SOURCE_DIR}/src)

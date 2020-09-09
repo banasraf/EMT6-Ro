@@ -3,12 +3,15 @@
 #include <iostream>
 #include <random>
 #include <vector>
+#include <cmath>
 #include "emt6ro/common/debug.h"
 #include "emt6ro/common/grid.h"
 #include "emt6ro/diffusion/diffusion.h"
-#include "emt6ro/division/cell-division.h"
+#include "emt6ro/simulation/cell-division.h"
 #include "emt6ro/simulation/simulation.h"
 #include "emt6ro/statistics/statistics.h"
+#include "emt6ro/common/cuda-utils.h"
+#include "emt6ro/common/stack.cuh"
 
 namespace emt6ro {
 
@@ -23,7 +26,7 @@ __global__ void populateGridViewsKernel(GridView<Site> *views, uint32_t batch_si
   }
 }
 
-__host__ __device__ uint8_t vacantNeighbours(const GridView<Site> &grid, int32_t r, int32_t c) {
+__host__ __device__ uint8_t vacantNeighbours(const GridView<Site> &grid, int16_t r, int16_t c) {
   return grid(r - 1, c - 1).isVacant() +
          grid(r - 1, c + 1).isVacant() +
          grid(r + 1, c - 1).isVacant() +
@@ -34,53 +37,80 @@ __host__ __device__ uint8_t vacantNeighbours(const GridView<Site> &grid, int32_t
          grid(r + 1, c).isVacant();
 }
 
-__global__ void cellSimulationKernel(GridView<Site> *grids, ROI *rois,
+static const int kFindOccupiedNthreads = 32;
+__global__ void findOccupied(GridView<Site> *lattices, uint32_t *occupied_b) {
+  extern __shared__ uint32_t shmem[];
+  auto lattice = lattices[blockIdx.x];
+  uint32_t n = 0;
+  Coords collection[1024 / kFindOccupiedNthreads];
+  GRID_FOR(0, 0, lattice.dims.height - 1, lattice.dims.width - 1) {
+    if (lattice(r, c).isOccupied()) {
+      collection[n++] = Coords{r, c};
+    }
+  }
+  shmem[threadIdx.x] = n;
+  __syncthreads();
+  uint32_t acc = 0;
+  for (int i = 0; i < threadIdx.x; ++i) {
+    acc += shmem[i];
+  }
+  uint32_t &n_occupied = occupied_b[blockIdx.x * 1024];
+  auto *occupied = reinterpret_cast<Coords*>(&n_occupied + 1);
+  for (int i = 0; i < n; ++i)
+    occupied[acc + i] = collection[i];
+  if (threadIdx.x == blockDim.x - 1)
+    n_occupied = acc + n;
+}
+
+__global__ void cellSimulationKernel(GridView<Site> *grids, uint32_t *occupied_b,
                                      Parameters params, curandState_t *rand_states,
-                                     bool *dividing_cells,
                                      Protocol *protocols, uint32_t step) {
-  extern __shared__ bool division_ready[];
+  extern __shared__ uint64_t shm[];
+  StackView<Coords> occupied(&occupied_b[blockIdx.x * 1024]);
+  uint64_t division = 0;
   uint8_t vacant_neighbours[4];
-  const auto roi = rois[blockIdx.x];
   auto &grid = grids[blockIdx.x];
   const auto &protocol = protocols[blockIdx.x];
-  const auto start_r = roi.origin.r;
-  const auto start_c = roi.origin.c;
-  const auto tid = blockDim.x * threadIdx.y + threadIdx.x;
   curandState_t *rand_state =
-      rand_states + blockDim.x * blockDim.y * blockIdx.x + tid;
+      rand_states + blockDim.x * blockIdx.x + threadIdx.x;
   CuRandEngine rand(rand_state);
   uint8_t subi = 0;
-  GRID_FOR(start_r, start_c, roi.dims.height + start_r, roi.dims.width + start_c) {
-    vacant_neighbours[subi] = vacantNeighbours(grid, r, c);
+  for (auto coords : dev_iter(occupied)) {
+    vacant_neighbours[subi] = vacantNeighbours(grid, coords.r, coords.c);
     ++subi;
   }
   __syncthreads();
-  division_ready[tid] = false;
   subi = 0;
   auto dose = protocol.getDose(step);
-  GRID_FOR(start_r, start_c, roi.dims.height + start_r, roi.dims.width + start_c) {
-    auto &site = grid(r, c);
-    division_ready[tid] = division_ready[tid] ||
-                          site.step(params, vacant_neighbours[subi], dose, rand);
+  for (auto coords : dev_iter(occupied)) {
+    auto &site = grid(coords);
+    auto d = site.step(params, vacant_neighbours[subi], dose, rand);
+    if (d) {
+      auto child_coords = chooseNeighbour(coords.r, coords.c, rand);
+      if (grid(child_coords).isVacant()) {
+        division = Coords2(coords, child_coords).encode();
+      }
+    }
     ++subi;
   }
-  __syncthreads();
-  int t = tid;
-  for (int d = 1; d < blockDim.y * blockDim.x; d *= 2) {
-    if (t % 2 == 0) {
-      division_ready[tid] = division_ready[tid] || division_ready[tid + d];
-      t /= 2;
-    }
-    __syncthreads();
+  division = block_reduce(division, shm,
+                          [](uint64_t a, uint64_t b){return a | (b * (uint64_t)(!a));});
+  if (threadIdx.x == 0 && division) {
+    Coords2 coords = Coords2::decode(division);
+    auto parent = coords[0];
+    auto child = coords[1];
+    grid(child).state = Site::State::OCCUPIED;
+    grid(child).cell = divideCell(grid(parent).cell, params, rand);
+    occupied.push(child);
   }
-  if (tid == 0) dividing_cells[blockIdx.x] = division_ready[0];
 }
 
 }  // namespace detail
 
 void Simulation::populateLattices() {
-  auto blocks = (batch_size + 1023) / 1024;
-  auto block_size = (batch_size > 1024) ? 1024 : batch_size;
+  auto mbs = CuBlockDimX * CuBlockDimY;
+  auto blocks = div_ceil(batch_size, mbs);
+  auto block_size = (batch_size > mbs) ? mbs : batch_size;
   detail::populateGridViewsKernel<<<blocks, block_size, 0, str.stream_>>>
     (lattices.data(), batch_size, dims, data.data());
   KERNEL_DEBUG("populate")
@@ -88,17 +118,17 @@ void Simulation::populateLattices() {
 
 Simulation::Simulation(uint32_t batch_size, const Parameters &parameters, uint32_t seed)
     : batch_size(batch_size)
-    , dims({parameters.lattice_dims.height+2, parameters.lattice_dims.width+2})
+    , dims(Dims(parameters.lattice_dims.height+2, parameters.lattice_dims.width+2))
     , params(parameters)
     , data(batch_size * dims.vol())
     , protocols(batch_size)
     , lattices(batch_size)
     , rois(batch_size)
     , border_masks(batch_size * dims.vol())
-    , division_ready(batch_size)
-    , rand_state(batch_size * CuBlockDimX * CuBlockDimY)
+    , occupied(batch_size * 1024)
+    , rand_state(batch_size * simulate_num_threads)
     , results(batch_size) {
-  std::vector<uint32_t> h_seeds(batch_size * CuBlockDimX * CuBlockDimY);
+  std::vector<uint32_t> h_seeds(batch_size * simulate_num_threads);
   std::mt19937 rand{seed};
   std::generate(h_seeds.begin(), h_seeds.end(), rand);
   auto seeds = device::buffer<uint32_t>::fromHost(h_seeds.data(), h_seeds.size(), str.stream_);
@@ -120,12 +150,17 @@ void Simulation::sendData(const HostGrid<Site> &grid, const Protocol &protocol, 
 }
 
 void Simulation::step() {
-  if (step_ % 64 == 0) {
+  if (step_ % 128 == 0) {
+    detail::findOccupied
+    <<<batch_size, detail::kFindOccupiedNthreads,
+       detail::kFindOccupiedNthreads * sizeof(uint32_t), str.stream_>>>
+    (lattices.data(), occupied.data());
+  }
+  if (step_ % 32 == 0) {
     updateROIs();
   }
   diffuse();
   simulateCells();
-  cellDivision();
   ++step_;
 }
 
@@ -133,20 +168,17 @@ void Simulation::diffuse() {
   batchDiffusion(lattices.data(), rois.data(), border_masks.data(), params.diffusion_params,
                  params.external_levels, params.time_step/params.diffusion_params.time_step,
                  dims, batch_size, str.stream_);
+  // oldBatchDiffusion(data.data(), dims, params, batch_size);
 }
 
 void Simulation::simulateCells() {
   detail::cellSimulationKernel
-    <<<batch_size, dim3(CuBlockDimX, CuBlockDimY), CuBlockDimX*CuBlockDimY, str.stream_>>>
-    (lattices.data(), rois.data(), params, rand_state.states(), division_ready.data(),
-        protocols.data(), step_);
+    <<<batch_size, simulate_num_threads, sizeof(uint64_t)*simulate_num_threads/32, str.stream_>>>
+    (lattices.data(), occupied.data(), params, rand_state.states(),
+     protocols.data(), step_);
   KERNEL_DEBUG("simulate cells")
 }
 
-void Simulation::cellDivision() {
-  batchCellDivision(lattices.data(), params, division_ready.data(), rand_state.states(),
-                    batch_size, str.stream_);
-}
 void Simulation::updateROIs() {
   findROIs(rois.data(), border_masks.data(), lattices.data(), batch_size, str.stream_);
 }

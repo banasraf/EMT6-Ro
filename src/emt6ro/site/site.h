@@ -1,11 +1,34 @@
 #ifndef EMT6RO_SITE_SITE_H_
 #define EMT6RO_SITE_SITE_H_
 
+#include <cuda_runtime.h>
 #include <cstdint>
 #include "emt6ro/cell/cell.h"
 #include "emt6ro/parameters/parameters.h"
 
 namespace emt6ro {
+
+template <typename T>
+class DeviceStore {
+ public:
+  DeviceStore(T *mem, unsigned *ind, unsigned size): mem_(mem), size_(size), ind_(ind) {
+    cudaMemset(ind, 0, sizeof(unsigned));
+  }
+
+  __host__ __device__ void push(const T &elem) {
+    #ifdef __CUDA_ARCH__
+    unsigned place = atomicInc(ind_, size_);
+    #else
+    unsigned place = (*ind_)++;
+    #endif
+    mem_[place] = elem;
+  }
+
+ private:
+  T *mem_;
+  unsigned size_;
+  unsigned *ind_;
+};
 
 /// @brief Representation of a site on a simulation lattice
 struct Site {
