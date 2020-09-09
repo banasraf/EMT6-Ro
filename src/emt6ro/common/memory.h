@@ -8,10 +8,27 @@
 namespace emt6ro {
 namespace device {
 
+class Guard {
+  int previous_id{};
+
+ public:
+  explicit Guard(int new_id) {
+    cudaGetDevice(&previous_id);
+    cudaSetDevice(new_id);
+  }
+
+  ~Guard() {
+    cudaSetDevice(previous_id);
+  }
+};
+
+
 struct Stream {
   cudaStream_t stream_;
+  int device_id_;
 
   Stream() {
+    cudaGetDevice(&device_id_);
     cudaStreamCreate(&stream_);
   }
 
@@ -35,24 +52,11 @@ struct Stream {
  private:
   void Release() {
     if (stream_) {
+      Guard dg(device_id_);
       cudaStreamSynchronize(stream_);
       cudaStreamDestroy(stream_);
       KERNEL_DEBUG("stream destroy");
     }
-  }
-};
-
-class Guard {
-  int previous_id{};
-
- public:
-  explicit Guard(int new_id) {
-    cudaGetDevice(&previous_id);
-    cudaSetDevice(new_id);
-  }
-
-  ~Guard() {
-    cudaSetDevice(previous_id);
   }
 };
 
