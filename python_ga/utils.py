@@ -245,7 +245,7 @@ def calculate_probability_annealing(iteration, max_value=0.5, max_iter=100, eps=
         result = np.round((x ** 4) * max_value, rounding_decimal)
         return result if result >= eps else eps
 
-    x = 1 - iteration / max_iter
+    x = 1 - (iteration - 1) / max_iter
     return formula(x)
 
 

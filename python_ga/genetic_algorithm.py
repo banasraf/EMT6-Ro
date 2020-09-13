@@ -44,9 +44,16 @@ def mutations(population, config, iteration):
     }
 
     for mut_type in list(config['mutations'].keys()):
+        mutation_type = config['mutations'][mut_type]
         if mut_type in mutation.keys():
-            if config['mutations'][mut_type]['mut_prob'] == 'annealing':
-                config['mutations'][mut_type]['mut_prob'] = calculate_probability_annealing(iteration)
+            if mutation_type['mut_prob'] == 'annealing' or \
+                    mutation_type['mut_type'] == 'annealing':
+                mutation_type['mut_type'] = 'annealing'
+                mutation_type['mut_prob'] = calculate_probability_annealing(
+                    iteration=iteration,
+                    max_value=mutation_type['mut_prob_max'],
+                    max_iter=config['max_iter'],
+                )
             population = mutation[mut_type](population=population, config=config)
             logger.info(f'{mut_type} {[sum(pop) for pop in population]}')
         else:
@@ -155,6 +162,7 @@ def new_genetic_algorithm(population, model, config, converter):
     neptune.append_tag('grid_search')
     neptune.append_tag(config['selection']['type'])
     neptune.append_tag(config['crossover']['type'])
+    neptune.append_tag(f"{int(config['time_interval_hours'])}h")
     for mutation_type in config['mutations'].keys():
         neptune.append_tag(mutation_type)
         neptune.append_tag(str(f"mut_proba {config['mutations'][mutation_type]['mut_prob']}"))
