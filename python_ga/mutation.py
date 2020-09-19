@@ -101,7 +101,7 @@ def mutate_split(population, config, max_dose=10, min_dose=0.25):
     """
     interval_in_indices = int(2 * config['time_interval_hours'])
 
-    mutation_config = config['mutations']['mutate_merge']
+    mutation_config = config['mutations']['mutate_split']
 
     population = np.asarray(population)
     for i, genome in enumerate(population):
