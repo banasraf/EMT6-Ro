@@ -94,7 +94,7 @@ def mutate_swap(population, config):
     return population
 
 
-def mutate_split(population, config, max_dose=10, min_dose=0.25):
+def mutate_split(population, config):
     """
     Splitting a non-zero dose (> 0.25Gy) into 2 doses.
     population - next population, array [population_size, element_size].
@@ -102,29 +102,30 @@ def mutate_split(population, config, max_dose=10, min_dose=0.25):
     interval_in_indices = int(2 * config['time_interval_hours'])
 
     mutation_config = config['mutations']['mutate_split']
+    min_dose = config['step_value']
+    max_dose = config['max_dose_value']
 
     population = np.asarray(population)
     for i, genome in enumerate(population):
         if np.random.uniform() < mutation_config['mut_prob']:
-            while True:
-                gene_idx = np.random.randint(len(genome))
-                if genome[gene_idx] >= min_dose:
-                    k = genome[gene_idx] / min_dose
-                    split = np.random.randint(0, k)
-                    d1 = split * min_dose
-                    d2 = genome[gene_idx] - d1
-                    genome[gene_idx] = 0
-                    while True:
-                        new_gene_idx = np.random.randint(len(genome))
-                        if genome[new_gene_idx] + d1 < max_dose:
-                            genome[new_gene_idx] = genome[new_gene_idx] + d1
-                            break
-                    while True:
-                        new_gene_idx = np.random.randint(len(genome))
-                        if genome[new_gene_idx] + d2 < max_dose:
-                            genome[new_gene_idx] = genome[new_gene_idx] + d2
-                            break
-                    break
+            non_zero_dose_indices = np.nonzero(genome)[0]
+            if non_zero_dose_indices.size:
+                gene_idx = np.random.choice(non_zero_dose_indices)
+                k = genome[gene_idx] / min_dose
+                split = np.random.randint(0, k)
+                d1 = split * min_dose
+                d2 = genome[gene_idx] - d1
+                for _ in range(len(population)):
+                    new_gene_idx = np.random.randint(len(genome))
+                    if genome[new_gene_idx] + d1 <= max_dose:
+                        genome[new_gene_idx] = genome[new_gene_idx] + d1
+                        break
+                for _ in range(len(population)):
+                    new_gene_idx = np.random.randint(len(genome))
+                    if genome[new_gene_idx] + d2 <= max_dose:
+                        genome[new_gene_idx] = genome[new_gene_idx] + d2
+                        break
+                genome[gene_idx] = 0
         population[i] = refine_genome_around_cross_point_to_time_constraint(
             genome=population[i], interval_in_indices=interval_in_indices)
     return population.tolist()
