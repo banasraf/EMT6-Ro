@@ -8,6 +8,12 @@ max_dose_value: 2.5
 max_iter: 200
 max_value: 10
 mutations:
+  mutate_dose_value:
+    max_value: 10
+    min_value: 0.25
+    mut_prob: annealing
+    mut_prob_max: 0.1
+    step_value: 0.25
   mutate_split:
     mut_prob: annealing
     mut_prob_max: 0.1
