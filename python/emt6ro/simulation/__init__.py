@@ -27,15 +27,15 @@ class Experiment:
 		self.result_shape = (protocols_num, len(tumors), runs)
 		self._experiment = _Experiment(params, tumors, runs, protocols_num, simulation_steps, protocol_resolution, gpu_id)
 
-	def run(self, protocols):
+	def run(self, nsteps):
 		"""
-		Start the simulation for given protocols.
+		Run nsteps steps of the simulation
 		
 		Parameters
 		----------
-		protocols - list of lists of pairs (irradiation time in steps, dose)
+		nsteps - number of simulation steps
 		"""
-		self._experiment.run(protocols)
+		self._experiment.run(nsteps)
 
 	def get_results(self):
 		"""
@@ -48,3 +48,18 @@ class Experiment:
 		res = np.array(self._experiment.results())
 		return res.reshape(self.result_shape)
 
+	def add_irradiations(self, protocols):
+		"""
+		Add irradiations.
+
+		Parameters
+		----------
+		protocols - list of pairs (time, dose)
+		"""
+		self._experiment.add_irradiations(protocols)
+
+	def reset(self):
+		"""
+		Restore the initial states of the simulations
+		"""
+		self._experiment.reset()

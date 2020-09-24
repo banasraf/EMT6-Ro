@@ -41,6 +41,8 @@ class Simulation {
    */
   void sendData(const HostGrid<Site> &grid, const Protocol &protocol, uint32_t multi = 1);
 
+  void sendData(const HostGrid<Site> &grid, uint32_t multi = 1);
+
   /**
    * Run simulation.
    * The whole batch should be filled (with `sendData`) before executing this function.
@@ -69,6 +71,12 @@ class Simulation {
 
   void step();
 
+  void reset();
+
+  void setState(const Site *state);
+
+  void setProtocols(const Protocol *protocols);
+
  private:
   void populateLattices();
 
@@ -86,6 +94,7 @@ class Simulation {
   device::buffer<Site> data;
   device::buffer<Protocol> protocols;
   uint32_t filled_samples = 0;
+  uint32_t filled_protocols = 0;
   device::buffer<GridView<Site>> lattices;
   device::buffer<ROI> rois;
   device::buffer<uint8_t> border_masks;

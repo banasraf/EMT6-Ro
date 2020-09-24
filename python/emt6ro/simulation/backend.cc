@@ -22,10 +22,11 @@ class Experiment {
   int protocols_num; // number of protocols
   uint32_t simulation_steps;
   uint32_t protocol_resolution;
-  std::vector<HostGrid<Site>> tumors_data;
+  device::buffer<Site> tumors_data;
   int64_t protocol_data_size;
   device::Guard device_guard;
-  device::buffer<float> protocols_data;
+  device::unique_ptr<float[]> protocols_data;
+  std::vector<Protocol> protocols;
   std::random_device rd{};
   Parameters params;
   Simulation simulation;
@@ -42,37 +43,69 @@ class Experiment {
   , protocols_num{protocols_num}
   , simulation_steps(sim_steps)
   , protocol_resolution(prot_resolution)
-  , tumors_data{}
+  , tumors_data(tests_num * protocols_num * acc_volume(tumors))
   , protocol_data_size{(sim_steps + prot_resolution - 1) / prot_resolution}
   , device_guard{device_id}
-  , protocols_data(protocol_data_size * protocols_num)
+  , protocols_data()
+  , protocols(protocols_num * tests_num * tumors_num)
   , params(params)
   , simulation(tumors_num * tests_num * protocols_num, params, rd()) {
-    for (auto t: tumors) {
-      tumors_data.push_back(*t);
+    device::Guard d_g{device_id};
+    float *p_data;
+    cudaMallocManaged(&p_data, protocol_data_size * protocols_num * sizeof(float));
+    protocols_data = device::unique_ptr<float[]>(p_data, device::Deleter{device_id});
+    uint32_t index = 0;
+    for (int p = 0; p < protocols_num; ++p) {
+      for (auto tumor : tumors) {
+        for (int t = 0; t < tests_num; ++t) {
+          tumors_data.copyHost(tumor->view().data, tumor->view().dims.vol(), index, simulation.stream());
+          index += tumor->view().dims.vol();
+        }
+      }
+    }
+    for (int p = 0; p < protocols_num; ++p) {
+      Protocol prot{protocol_resolution, simulation_steps,
+                    protocols_data.get() + p * protocol_data_size};
+      for (int t = 0; t < tumors_num * tests_num; ++t) {
+        protocols[p * tumors_num * tests_num + t] = prot;
+      }
+    }
+    simulation.setProtocols(protocols.data());
+    reset();
+  }
+
+  static int32_t acc_volume(const std::vector<HostGrid<Site>*> &tumors) {
+    int size = 0; 
+    for (auto &t : tumors) size += t->view().dims.vol(); 
+    return size;
+  }
+
+  void reset() {
+    device::Guard d_g{device_id};
+    simulation.reset();
+    simulation.setState(tumors_data.data());
+    memset(protocols_data.get(), 0 , protocol_data_size * protocols_num * sizeof(float));
+  }
+
+  void addIrradiations(const std::vector<std::vector<std::pair<int, float>>> &ps) {
+    ENFORCE(protocols.size() == protocols_num, "Wrong number of protocols.");
+    device::Guard d_g{device_id};
+    for (int i = 0; i < protocols_num; ++i) {
+      auto p = protocols[i * tumors_num * tests_num];
+      for (auto time_dose : ps[i]) {
+        p.closestDose(time_dose.first) += time_dose.second;
+      }
     }
   }
 
-  void run(const std::vector<std::vector<std::pair<int, float>>> &protocols) {
-    if (running)
-      throw std::runtime_error("Experiment already running.");
-    if (protocols.size() != protocols_num)
-      throw std::runtime_error("Wrong number of protocols.");
+  void run(int nsteps) {
+    ENFORCE(!running, "Experiment already running.");
     running = true;
-      results_ = std::async(std::launch::async, [&, protocols]() {
+    results_ = std::async(std::launch::async, [&, nsteps]() {
       device::Guard d_g{device_id};
-      prepareProtocolsData(protocols);
-      for (int p = 0; p < protocols_num; ++p) {
-        Protocol prot{protocol_resolution, simulation_steps,
-                      protocols_data.data() + p * protocol_data_size};
-        for (auto &tumor : tumors_data) {
-          simulation.sendData(tumor, prot, tests_num);
-        }
-      }
-      simulation.run(simulation_steps);
+      simulation.run(nsteps);
       std::vector<uint32_t> res(tumors_num * tests_num * protocols_num);
       simulation.getResults(res.data()); 
-      simulation = Simulation(tumors_num * tests_num * protocols_num, params, rd());
       return res;
     });
   }
@@ -83,22 +116,6 @@ class Experiment {
       throw std::runtime_error("First you have to run the experiment.");
     running = false;
     return results_.get();
-  }
-
- private:
-  void prepareProtocolsData(const std::vector<std::vector<std::pair<int, float>>> &protocols) {   
-    std::vector<float> host_protocol(protocol_data_size);
-    size_t p_i = 0;
-    for (const auto &protocol: protocols) {
-      std::fill(host_protocol.begin(), host_protocol.end(), 0);
-      for (const auto &irradiation: protocol) {
-        auto i = irradiation.first / protocol_resolution;
-        host_protocol[i] += irradiation.second;
-      }
-      protocols_data.copyHost(host_protocol.data(), protocol_data_size, p_i * protocol_data_size,
-                              simulation.stream());
-      ++p_i;
-    }
   }
 
 };
@@ -121,9 +138,11 @@ PYBIND11_MODULE(backend, m) {
   py::class_<Experiment>(m, "_Experiment")
       .def(py::init<const Parameters&, std::vector<HostGrid<Site>*>, int, int, int, int, int>())
       .def("run", &Experiment::run)
-      .def("results", &Experiment::results);
+      .def("results", &Experiment::results)
+      .def("add_irradiations", &Experiment::addIrradiations)
+      .def("reset", &Experiment::reset);
 
-  m.def("load_parameters", &Parameters::loadFromJSONFile);
+  m.def("load_parameters", &Parameters::loadFromJSONFile);  
 
   m.def("load_state", &loadFromFile);
 

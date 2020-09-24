@@ -8,6 +8,11 @@
 
 namespace emt6ro {
 
+constexpr int kBlockDimX = 32;
+constexpr int kBlockDimY = 32;
+constexpr int kBlockDiv = (55 + kBlockDimX - 1) / kBlockDimX;
+constexpr int kSitesPerThread = kBlockDiv * kBlockDiv;
+
 __device__ void fillBorderMask(GridView<uint8_t> mask, int32_t max_dist) {
   float midr = mask.dims.height / 2.f;
   float midc = mask.dims.width / 2.f;
@@ -134,10 +139,11 @@ __global__ void diffusionKernel(GridView<Site> *lattices, const ROI *rois,
   extern __shared__ Substrates tmp_mem[];
   auto lattice = lattices[blockIdx.x];
   auto roi = rois[blockIdx.x];
+  if (roi.dims.height == 0 || roi.dims.width == 0) return;
   Dims bordered_dims(roi.dims.height + 4, roi.dims.width + 4);
   GridView<Substrates> tmp_grid{tmp_mem, bordered_dims};
-  Substrates diff[SitesPerThread/4];
-  Coords sites[SitesPerThread/4];
+  Substrates diff[kSitesPerThread];
+  Coords sites[kSitesPerThread];
   int16_t nsites = 0;
   GridView<const uint8_t> b_mask{border_masks + lattice.dims.vol() * blockIdx.x,
                                  Dims(roi.dims.height + 2, roi.dims.width + 2)};
@@ -188,7 +194,7 @@ void batchDiffusion(GridView<Site> *lattices, const ROI *rois, const uint8_t *bo
                     const Parameters::Diffusion &params, Substrates external_levels, int16_t steps,
                     Dims dims, int32_t batch_size, cudaStream_t stream) {
   auto shared_mem_size = sizeof(Substrates) * Dims(dims.height+4, dims.width+4).vol();
-  diffusionKernel<<<batch_size, dim3(CuBlockDimX*2, CuBlockDimY*2), shared_mem_size, stream>>>
+  diffusionKernel<<<batch_size, dim3(kBlockDimX, kBlockDimY), shared_mem_size, stream>>>
     (lattices, rois, border_masks, params, external_levels, steps);
   KERNEL_DEBUG("diffusion kernel")
 }

@@ -12,6 +12,7 @@
 #include "emt6ro/statistics/statistics.h"
 #include "emt6ro/common/cuda-utils.h"
 #include "emt6ro/common/stack.cuh"
+#include "emt6ro/common/error.h"
 
 namespace emt6ro {
 
@@ -128,11 +129,7 @@ Simulation::Simulation(uint32_t batch_size, const Parameters &parameters, uint32
     , occupied(batch_size * 1024)
     , rand_state(batch_size * simulate_num_threads)
     , results(batch_size) {
-  std::vector<uint32_t> h_seeds(batch_size * simulate_num_threads);
-  std::mt19937 rand{seed};
-  std::generate(h_seeds.begin(), h_seeds.end(), rand);
-  auto seeds = device::buffer<uint32_t>::fromHost(h_seeds.data(), h_seeds.size(), str.stream_);
-  rand_state.init(seeds.data(), str.stream_);
+  rand_state.init(seed, str.stream_);
   populateLattices();
 }
 
@@ -147,6 +144,7 @@ void Simulation::sendData(const HostGrid<Site> &grid, const Protocol &protocol, 
     KERNEL_DEBUG("protocol")
   }
   filled_samples += multi;
+  filled_protocols += multi;
 }
 
 void Simulation::step() {
@@ -168,7 +166,6 @@ void Simulation::diffuse() {
   batchDiffusion(lattices.data(), rois.data(), border_masks.data(), params.diffusion_params,
                  params.external_levels, params.time_step/params.diffusion_params.time_step,
                  dims, batch_size, str.stream_);
-  // oldBatchDiffusion(data.data(), dims, params, batch_size);
 }
 
 void Simulation::simulateCells() {
@@ -189,15 +186,16 @@ void Simulation::getResults(uint32_t *h_results) {
                   cudaMemcpyDeviceToHost, str.stream_);
   sync();
 }
+
 void Simulation::run(uint32_t nsteps) {
-  assert(filled_samples == batch_size);
+  ENFORCE(filled_samples == batch_size, "");
   for (uint32_t s = 0; s < nsteps; ++s) {
     step();
   }
 }
 
 void Simulation::getData(Site *h_data, uint32_t sample) {
-  assert(sample < batch_size);
+  ENFORCE(sample < batch_size, "");
   cudaMemcpyAsync(h_data, data.data() + sample * dims.vol(),
             dims.vol() * sizeof(Site), cudaMemcpyDeviceToHost, str.stream_);
   sync();
@@ -205,6 +203,26 @@ void Simulation::getData(Site *h_data, uint32_t sample) {
 
 void Simulation::sync() {
   cudaStreamSynchronize(str.stream_);
+}
+
+void Simulation::reset() {
+  sync();
+  step_ = 0;
+  filled_samples = 0;
+}
+
+void Simulation::setState(const Site *state) {
+  cudaMemcpyAsync(data.data(), state, batch_size * dims.vol() * sizeof(Site), 
+                  cudaMemcpyDeviceToDevice, str.stream_);
+  KERNEL_DEBUG("copy data");
+  filled_samples = batch_size;
+}
+
+void Simulation::setProtocols(const Protocol *ps) {
+  cudaMemcpyAsync(protocols.data(), ps, batch_size * sizeof(Protocol), 
+                  cudaMemcpyHostToDevice, str.stream_);
+  KERNEL_DEBUG("copy protocols");
+  filled_protocols = batch_size;
 }
 
 }  // namespace emt6ro

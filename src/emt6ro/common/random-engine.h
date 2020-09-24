@@ -12,7 +12,7 @@ namespace emt6ro {
 
 class CuRandEngineState {
  public:
-  CuRandEngineState(size_t size, const uint32_t *seeds);
+  CuRandEngineState(size_t size, uint32_t seed, cudaStream_t stream = nullptr);
 
   explicit CuRandEngineState(size_t size);
 
@@ -21,7 +21,7 @@ class CuRandEngineState {
    * @param seeds - pointer to device data with random seeds
    * @param stream - cuda stream
    */
-  void init(const uint32_t *seeds, cudaStream_t stream = nullptr);
+  void init(const uint32_t seed, cudaStream_t stream = nullptr);
 
   inline const curandState_t *states() const {
     return state_.data();

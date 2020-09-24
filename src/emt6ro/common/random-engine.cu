@@ -5,29 +5,29 @@ namespace emt6ro {
 
 namespace detail {
 
-__global__ void initializeState(curandState_t *state, const uint32_t *seeds, size_t size) {
+__global__ void initializeState(curandState_t *state, uint32_t seed, size_t size) {
   auto i = blockIdx.x * blockDim.x + threadIdx.x;
   if (i >= size) return;
-  curand_init(seeds[i], 0, 0, &state[i]);
+  curand_init(seed, i, 0, &state[i]);
 }
 
-void init(curandState_t *state_data, const uint32_t *seeds, size_t size, cudaStream_t stream) {
+void init(curandState_t *state_data, uint32_t seed, size_t size, cudaStream_t stream) {
   auto mbs = CuBlockDimX * CuBlockDimY;
   auto blocks = div_ceil(size, mbs);
   auto block_size = (size > mbs) ? mbs : size;
-  detail::initializeState<<<blocks, block_size, 0, stream>>>(state_data, seeds, size);
+  detail::initializeState<<<blocks, block_size, 0, stream>>>(state_data, seed, size);
 }
 
 }  // namespace detail
 
-CuRandEngineState::CuRandEngineState(size_t size, const uint32_t* seeds) : state_(size) {
-  init(seeds);
+CuRandEngineState::CuRandEngineState(size_t size, uint32_t seed, cudaStream_t stream) : state_(size) {
+  init(seed, stream);
 }
 
 CuRandEngineState::CuRandEngineState(size_t size): state_(size) {}
 
-void CuRandEngineState::init(const uint32_t *seeds, cudaStream_t stream) {
-  detail::init(state_.data(), seeds, state_.size(), stream);
+void CuRandEngineState::init(uint32_t seed, cudaStream_t stream) {
+  detail::init(state_.data(), seed, state_.size(), stream);
 }
 
 __device__ float CuRandEngine::uniform() {
