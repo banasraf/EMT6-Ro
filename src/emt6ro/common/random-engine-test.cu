@@ -11,10 +11,7 @@ __global__ void fillUniform(float *data, curandState_t *states) {
 
 TEST(RandomGenerator, FillUniform) {
   device::buffer<float> data(2 * 1024);
-  std::vector<uint32_t> h_seeds(2*1024);
-  for (size_t i = 0; i < 2 * 1024; ++i) h_seeds[i] = i;
-  auto d_seeds = device::buffer<uint32_t>::fromHost(h_seeds.data(), 2*1024);
-  CuRandEngineState state(2 * 1024, d_seeds.data());
+  CuRandEngineState state(2 * 1024, 1997);
   fillUniform<<<2, 1024>>>(data.data(), state.states());
   auto h_data = data.toHost();
   for (size_t i = 0; i < 2 * 1024; ++i) {

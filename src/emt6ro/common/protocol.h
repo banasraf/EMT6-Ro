@@ -13,6 +13,12 @@ struct Protocol {
     return 0;
   }
 
+  __host__ __device__ inline float &closestDose(uint32_t step) {
+    return data_[step / step_resolution_];
+  }
+
+  __device__ void reset();
+
   uint32_t step_resolution_;
   uint32_t length_;
   float *data_;

@@ -43,9 +43,12 @@ class EMT6RoModel:
         """
         assert len(protocols) == self.num_protocols
         for experiment in self.experiments:
-            experiment.run(protocols)
+            experiment.add_irradiations(protocols)
+            experiment.run(self.num_steps)
         results = [experiment.get_results().reshape((1, self.num_protocols, -1)) for experiment in self.experiments]
         results = np.concatenate(results)
         results = results.mean(0).mean(1)
         fitness = 1500 - results
+        for experiment in self.experiments:
+            experiment.reset()
         return fitness
