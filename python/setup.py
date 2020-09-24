@@ -2,7 +2,7 @@ import setuptools
 
 setuptools.setup(
      name='emt6ro',  
-     version='0.1.3.1',
+     version='0.1.4.0',
      author="Rafal Banas",
      author_email="Banas.Rafal97@gmail.com",
      description="",
