@@ -43,6 +43,7 @@ def mutations(population, config, iteration):
         'mutate_split':     mutate_split,
     }
 
+    population_part_to_mutate = population[config['no_of_retaining_parents']:]
     for mut_type in list(config['mutations'].keys()):
         mutation_type = config['mutations'][mut_type]
         if mut_type in mutation.keys():
@@ -54,18 +55,19 @@ def mutations(population, config, iteration):
                     max_value=mutation_type['mut_prob_max'],
                     max_iter=config['max_iter'],
                 )
-            population = mutation[mut_type](population=population, config=config)
-            logger.info(f'{mut_type} {[sum(pop) for pop in population]}')
+            population_part_to_mutate = mutation[mut_type](population=population_part_to_mutate, config=config)
+            logger.info(f'{mut_type} {[sum(pop) for pop in population_part_to_mutate]}')
         else:
             logger.warning(f'Mutation "{mut_type}" not supported')
 
+    population[config['no_of_retaining_parents']:] = population_part_to_mutate
     return population
 
 
 # ======================================================================================================================
 # CROSSOVER
 # ======================================================================================================================
-def create_offspring(pop_size, selected_individuals, config):
+def create_offspring(pop_size, selected_individuals, retaining_parents, config):
     """
     Metoda zarządzająca procesem krzyżowania:
     1. Obliczana jest liczba par potomków;
@@ -81,6 +83,7 @@ def create_offspring(pop_size, selected_individuals, config):
     Aby wybrać jeden z tych wariantów należy odkomentować zaznaczone linie
     :param pop_size:                int
     :param selected_individuals:    list
+    :param retaining_parents:       list
     :param config:                  dict
     :return: new_population:        list
     """
@@ -88,8 +91,8 @@ def create_offspring(pop_size, selected_individuals, config):
              'cross_one_point':             cross_one_point,
              'cross_two_points':            cross_two_points,
              'normalized_crossover':        normalized_crossover}
-    offspring_pairs = int((pop_size - len(selected_individuals)) / 2)
-    new_population = [genome for genome in selected_individuals]
+    offspring_pairs = int((pop_size - len(retaining_parents)) / 2)
+    new_population = [genome for genome in retaining_parents]
     parent_index = cycle(range(len(selected_individuals)))
 
     for i in range(offspring_pairs):
@@ -119,7 +122,10 @@ def next_generation(population, pop_fitness, config):
     :param config:              dict
     :return: new_population:    list
     """
-    select_n = round_select_n(select_n=config['select_n'], pop_size=len(population))
+    select_n = round_select_n(
+        select_n=config['select_n'] - config['retained_parent_protocols'], pop_size=len(population))
+    config['no_of_retaining_parents'] = round_select_n(
+        select_n=config['retained_parent_protocols'], pop_size=len(population))
 
     selection = {
         'simple_selection':                 simple_selection,
@@ -127,6 +133,12 @@ def next_generation(population, pop_fitness, config):
         'tournament_selection_tuned':       tournament_selection_tuned,
         'roulette_selection':               roulette_selection,
     }
+    retaining_parents = selection['simple_selection'](
+        population=population,
+        pop_fitness=pop_fitness,
+        select_n=config['no_of_retaining_parents'],
+        config=config['selection'],
+    )
     selected_individuals = selection[config['selection']['type']](
         population=population,
         pop_fitness=pop_fitness,
@@ -136,6 +148,7 @@ def next_generation(population, pop_fitness, config):
     new_population = create_offspring(
         pop_size=len(population),
         selected_individuals=selected_individuals,
+        retaining_parents=retaining_parents,
         config=config,
     )
 
