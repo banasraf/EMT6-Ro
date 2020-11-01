@@ -74,8 +74,10 @@ def cross_one_point(x1, x2, config):
     new_x1[cross_point:length] = x2[cross_point:length]
     new_x2[cross_point:length] = x1[cross_point:length]
 
-    new_x1 = refine_genome_around_cross_point_to_time_constraint(genome=new_x1, interval_in_indices=interval_in_indices)
-    new_x2 = refine_genome_around_cross_point_to_time_constraint(genome=new_x2, interval_in_indices=interval_in_indices)
+    new_x1 = refine_genome_around_cross_point_to_time_constraint(
+        genome=new_x1, interval_in_indices=interval_in_indices, config=config)
+    new_x2 = refine_genome_around_cross_point_to_time_constraint(
+        genome=new_x2, interval_in_indices=interval_in_indices, config=config)
 
     new_x1 = normalize_crossover(new_x1, config)
     new_x2 = normalize_crossover(new_x2, config)
@@ -113,8 +115,10 @@ def cross_two_points(x1, x2, config):
     new_x1[cross_point_1:cross_point_2] = x2[cross_point_1:cross_point_2]
     new_x2[cross_point_1:cross_point_2] = x1[cross_point_1:cross_point_2]
 
-    new_x1 = refine_genome_around_cross_point_to_time_constraint(genome=new_x1, interval_in_indices=interval_in_indices)
-    new_x2 = refine_genome_around_cross_point_to_time_constraint(genome=new_x2, interval_in_indices=interval_in_indices)
+    new_x1 = refine_genome_around_cross_point_to_time_constraint(
+        genome=new_x1, interval_in_indices=interval_in_indices, config=config)
+    new_x2 = refine_genome_around_cross_point_to_time_constraint(
+        genome=new_x2, interval_in_indices=interval_in_indices, config=config)
 
     new_x1 = normalize_crossover(new_x1, config)
     new_x2 = normalize_crossover(new_x2, config)

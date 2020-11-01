@@ -36,7 +36,7 @@ def mutate_dose_value(population, config):
                     break
                 break
         population[i] = refine_genome_around_cross_point_to_time_constraint(
-            genome=genome, interval_in_indices=interval_in_indices)
+            genome=genome, interval_in_indices=interval_in_indices, config=config)
     return population
 
 
@@ -67,7 +67,7 @@ def mutate_time_value(population, config):
                     genome[new_dose_time] = new_dose_value
                     genome[gene_idx] = dose_remainder
         population[i] = refine_genome_around_cross_point_to_time_constraint(
-            genome=genome, interval_in_indices=interval_in_indices)
+            genome=genome, interval_in_indices=interval_in_indices, config=config)
     return population
 
 
@@ -90,7 +90,7 @@ def mutate_swap(population, config):
                 k = (gene_idx + k) % len(genome)
                 genome[gene_idx], genome[k] = genome[k], genome[gene_idx]
         population[i] = refine_genome_around_cross_point_to_time_constraint(
-            genome=population[i], interval_in_indices=interval_in_indices)
+            genome=population[i], interval_in_indices=interval_in_indices, config=config)
     return population
 
 
@@ -127,5 +127,5 @@ def mutate_split(population, config):
                         break
                 genome[gene_idx] = 0
         population[i] = refine_genome_around_cross_point_to_time_constraint(
-            genome=population[i], interval_in_indices=interval_in_indices)
+            genome=population[i], interval_in_indices=interval_in_indices, config=config)
     return population.tolist()
