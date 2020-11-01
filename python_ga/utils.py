@@ -6,8 +6,8 @@ import yaml
 # ==DOSE TIME CONSTRAINT UTILS==========================================================================================
 def assign_dose_within_time_constraint(
     doses_time_steps: list,
-    time_steps: np.ndarray,
-    time_interval_steps: int,
+    time_steps: np.ndarray = np.arange(0, 24*5*600, 300),
+    time_interval_steps: int = 1800,
 ):
     """Obliczenie czasu dawki w przypadku obostrzeń czasowych."""
     allowed_time_steps = time_steps.copy()
@@ -24,7 +24,7 @@ def assign_dose_within_time_constraint(
     return None
 
 
-def refine_genome_around_cross_point_to_time_constraint(genome: list, interval_in_indices: int):
+def refine_genome_around_cross_point_to_time_constraint(genome: list, interval_in_indices: int, config: dict):
     """
     Zmiana istniejącego genomu do postaci zgodnej z narzuconymi obostrzeniami czasowymi dla niezerowych dawek.
     Szczególnie istotne przy mutacji, działa na zasadzie wywoływań rekurencyjnych,
@@ -36,30 +36,6 @@ def refine_genome_around_cross_point_to_time_constraint(genome: list, interval_i
     * mutations of all types
     """
 
-    def check_first_dose_can_be_moved_earlier():
-        return position_of_wrong_dose == 0 and first_dose_index >= no_of_indices_to_move_dose
-
-    def check_not_first_dose_can_be_moved_earlier():
-        return position_of_wrong_dose > 0 and \
-               intervals_between_doses[position_of_wrong_dose - 1] >= interval_in_indices + no_of_indices_to_move_dose
-
-    def check_last_dose_can_be_moved_later():
-        return len(non_zero_dose_indices) == position_of_wrong_dose + 1 and \
-               len(genome) - second_dose_index > no_of_indices_to_move_dose
-
-    def check_not_last_dose_can_be_moved_later():
-        return len(non_zero_dose_indices) > position_of_wrong_dose + 2 and \
-               non_zero_dose_indices[position_of_wrong_dose + 2] - second_dose_index >= \
-               interval_in_indices + no_of_indices_to_move_dose
-
-    def move_first_dose():
-        genome[first_dose_index - no_of_indices_to_move_dose] = genome[first_dose_index]
-        genome[first_dose_index] = 0
-
-    def move_second_dose():
-        genome[second_dose_index + no_of_indices_to_move_dose] = genome[second_dose_index]
-        genome[second_dose_index] = 0
-
     genome = np.array(genome)
     non_zero_dose_indices = np.argwhere(genome > 0)[:, 0]
     intervals_between_doses = np.diff(non_zero_dose_indices)
@@ -67,30 +43,21 @@ def refine_genome_around_cross_point_to_time_constraint(genome: list, interval_i
         # if time intervals between non-zero doses are above the threshold
         return list(genome)
 
-    # relative position of non-zero dose which is too close to the next
-    position_of_wrong_dose = np.argwhere(intervals_between_doses < interval_in_indices + 1)[0][0]
+    # relative positions of two non-zero doses which are too close to each other
+    relative_position_of_collision_doses = np.argwhere(intervals_between_doses < interval_in_indices + 1)[:, 0]
+    temporal_non_zero_dose_indices = np.delete(non_zero_dose_indices, relative_position_of_collision_doses)
 
-    first_dose_index = non_zero_dose_indices[position_of_wrong_dose]
-    second_dose_index = non_zero_dose_indices[position_of_wrong_dose + 1]
-
-    no_of_indices_to_move_dose = interval_in_indices - (second_dose_index - first_dose_index)
-
-    if check_first_dose_can_be_moved_earlier():
-        move_first_dose()
-    elif check_not_first_dose_can_be_moved_earlier():
-        move_first_dose()
-    else:
-        if check_last_dose_can_be_moved_later():
-            move_second_dose()
-        elif check_not_last_dose_can_be_moved_later():
-            move_second_dose()
-        else:
-            # if cannot move the non-zero dose, erase it
-            genome[second_dose_index] = 0
-
-    # recursion
-    genome = refine_genome_around_cross_point_to_time_constraint(
-        genome=list(genome), interval_in_indices=interval_in_indices)
+    for relative_dose_position, _ in enumerate(relative_position_of_collision_doses):
+        dose_time_step = assign_dose_within_time_constraint(
+            doses_time_steps=temporal_non_zero_dose_indices * config['protocol_resolution'],
+            time_interval_steps=int(config['time_interval_hours'] * 600),
+        )
+        current_dose_index = non_zero_dose_indices[relative_position_of_collision_doses[relative_dose_position]]
+        if dose_time_step is not None:
+            dose_time_step = int(dose_time_step / config['protocol_resolution'])
+            genome[dose_time_step] = genome[current_dose_index]
+            temporal_non_zero_dose_indices = np.append(temporal_non_zero_dose_indices, dose_time_step)
+        genome[current_dose_index] = 0
 
     return list(genome)
 
