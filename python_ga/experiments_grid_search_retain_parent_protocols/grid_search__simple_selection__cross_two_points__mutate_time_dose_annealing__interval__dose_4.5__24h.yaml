@@ -5,7 +5,7 @@ crossover:
   - 75
   type: cross_two_points
 hour_steps: 600
-max_dose_value: 2.5
+max_dose_value: 4.5
 max_iter: 100
 max_value: 10
 mutations:
