@@ -22,9 +22,10 @@ def mutate_dose_value(population, config):
     min_dose = mutation_config['min_value']
     step = mutation_config['step_value']
     for i, genome in enumerate(population):
-        for gene_idx in range(len(genome)):
+        for _ in range(len(genome)):
+            gene_idx = np.random.randint(0, len(genome))
             p = np.random.uniform()
-            if p < mutation_config['mut_prob']:
+            if p < 0.5:
                 limit_value = min(max_dose, max_dose - sum(genome))
                 if limit_value > max_dose_value:
                     limit_value = max_dose_value
