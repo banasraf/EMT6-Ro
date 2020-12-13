@@ -22,22 +22,18 @@ def mutate_dose_value(population, config):
     min_dose = mutation_config['min_value']
     step = mutation_config['step_value']
     for i, genome in enumerate(population):
-        for _ in range(len(genome)):
+        while True:
             gene_idx = np.random.randint(0, len(genome))
-            p = np.random.uniform()
-            if p < 0.5:
-                limit_value = min(max_dose, max_dose - sum(genome))
-                if limit_value > max_dose_value:
-                    limit_value = max_dose_value
-                if limit_value > min_dose:
-                    new_dose_value = np.random.randint(0, int(round((limit_value - min_dose) / step))) * step + min_dose
-                    genome[gene_idx] = new_dose_value
-                elif limit_value > 0:
-                    genome[gene_idx] = min_dose
-                    break
+            limit_value = min(max_dose_value, max_dose - sum(genome)) + genome[gene_idx]
+            if limit_value > max_dose_value:
+                limit_value = max_dose_value
+            if limit_value > min_dose:
+                new_dose_value = limit_value
+                genome[gene_idx] = new_dose_value
+                population[i] = refine_genome_around_cross_point_to_time_constraint(
+                    genome=genome, interval_in_indices=interval_in_indices, config=config)
+            elif limit_value == 0 or sum(genome) > max_dose * 0.8:
                 break
-        population[i] = refine_genome_around_cross_point_to_time_constraint(
-            genome=genome, interval_in_indices=interval_in_indices, config=config)
     return population
 
 
