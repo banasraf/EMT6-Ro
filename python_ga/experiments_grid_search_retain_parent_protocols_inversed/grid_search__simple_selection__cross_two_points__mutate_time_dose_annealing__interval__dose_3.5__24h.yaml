@@ -1,0 +1,33 @@
+crossover:
+  cross_points_range_percentage:
+  - 25
+  - 50
+  - 75
+  type: cross_two_points
+hour_steps: 600
+max_dose_value: 3.5
+max_iter: 50
+max_value: 10
+mutations:
+  mutate_dose_value:
+    max_value: 10
+    min_value: 0.25
+    mut_prob: annealing
+    mut_prob_max: 0.1
+    step_value: 0.25
+  mutate_time_value:
+    mut_prob: annealing
+    mut_prob_max: 0.1
+num_gpus: 2
+num_protocols: 10
+num_tests: 4
+protocol_resolution: 300
+retained_parent_protocols: 0.1
+save_every_iteration: true
+save_only_last_iteration: false
+select_n: 0.5
+selection:
+  type: simple_selection
+step_value: 0.25
+stop_fitness: 10000
+time_interval_hours: 24.0
