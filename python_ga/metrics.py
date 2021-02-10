@@ -24,7 +24,7 @@ def collect_metrics(n_generation, pop_fitness, metrics=None):
     :param metrics: current metrics to which we append new metrics
     :return: metrics with added new metrics for the new population
     """
-    best_fit = min(pop_fitness)
+    best_fit = max(pop_fitness)
     avg_fit = np.mean(pop_fitness)
     data = pd.DataFrame([[n_generation, best_fit, avg_fit]], columns=['generation', 'best_fit', 'avg_fit'])
     return metrics.append(data, ignore_index=True)
@@ -39,7 +39,7 @@ def show_metrics(metrics, all_fitness, all_populations, config):
     :param config: experiment configuration
     :return:
     """
-    fit_idx = np.argsort(all_fitness[-1])
+    fit_idx = np.argsort(all_fitness[-1])[::-1]
     best_fit = all_populations[-1][fit_idx[0]]
 
     config['experiment_time'] = datetime.now().strftime("%d-%m-%Y_%H:%M:%S")
@@ -58,7 +58,7 @@ def show_metrics(metrics, all_fitness, all_populations, config):
     plt.grid()
     plt.savefig(plot_saving_path)
 
-    logger.info(f'best result: {min(all_fitness[-1])}')
+    logger.info(f'best result: {max(all_fitness[-1])}')
     logger.info(f'best individual: {best_fit}')
 
     neptune.log_image('fitness_figure', plot_saving_path)
