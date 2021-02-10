@@ -199,8 +199,8 @@ def new_genetic_algorithm(population, model, config, converter):
         fitness=pop_fitness,
         paired_population=paired_population,
     )
-    logger.info(f'Initial fitness value calculated | Best fit: {min(pop_fitness)} '
-                f'| For a starting protocol {paired_population[np.argmin(pop_fitness)]}')
+    logger.info(f'Initial fitness value calculated | Best fit: {max(pop_fitness)} '
+                f'| For a starting protocol {paired_population[np.argmax(pop_fitness)]}')
 
     date2 = date1
     date1 = datetime.now()
@@ -222,17 +222,17 @@ def new_genetic_algorithm(population, model, config, converter):
         # fitness
         pop_fitness = calculate_fitness(paired_population=paired_population, model=model)
 
-        best_protocol = paired_population[np.argmin(pop_fitness)]
+        best_protocol = paired_population[np.argmax(pop_fitness)]
         metrics = collect_metrics(n_generation=n_generation, pop_fitness=pop_fitness, metrics=metrics)
 
         logger.info(f'Generation: {n_generation} | '
-                    f'Best fit: {min(pop_fitness)} | '
+                    f'Best fit: {max(pop_fitness)} | '
                     f'For a protocol {best_protocol}')
 
         neptune.log_metric('iteration', n_generation)
-        neptune.log_metric('best_fitness', min(pop_fitness))
+        neptune.log_metric('best_fitness', max(pop_fitness))
         neptune.log_metric('avg_fitness', np.mean(pop_fitness))
-        neptune.log_text('best_protocol', f'Protocol id: {np.argmin(pop_fitness)} | {best_protocol}')
+        neptune.log_text('best_protocol', f'Protocol id: {np.argmax(pop_fitness)} | {best_protocol}')
         neptune.log_text('protocols', str({i: value for i, value in enumerate(paired_population)}))
 
         date2 = date1

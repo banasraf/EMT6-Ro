@@ -72,7 +72,7 @@ def simple_selection(population, pop_fitness, select_n, config):
     :param config:      dict
     :return: list
     """
-    best_index = np.argsort(pop_fitness)
+    best_index = np.argsort(pop_fitness)[::-1]
     return [population[i] for i in best_index][:select_n]
 
 
