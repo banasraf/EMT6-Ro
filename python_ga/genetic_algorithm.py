@@ -180,7 +180,7 @@ def new_genetic_algorithm(population, model, config, converter):
     for mutation_type in config['mutations'].keys():
         neptune.append_tag(mutation_type)
         neptune.append_tag(str(f"mut_proba {config['mutations'][mutation_type]['mut_prob']}"))
-        if config['selection']['type'] != 'simple_selection':
+        if config['selection']['type'] != 'simple_selection' and config['selection']['type'] != 'roulette_selection':
             neptune.append_tag(str(f"select_proba {config['selection']['probability']}"))
 
     n_generation = 0
