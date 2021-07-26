@@ -1,5 +1,6 @@
 import sys
 import pandas as pd
+import numpy as np
 
 from pytorch_forecasting import TimeSeriesDataSet, TemporalFusionTransformer
 from pytorch_forecasting.data import NaNLabelEncoder
@@ -9,8 +10,9 @@ from genetic_algorithm import new_genetic_algorithm
 
 from emt6ro.simulation import load_state, load_parameters
 
-model_path = 'models/model_1.ckpt'
+model_path = '../CancerOptimization/optuna_test/trial_1/epoch=171.ckpt'
 
+DATA_PATH = '../CancerOptimization/data/data.csv' #path to preprocessed csv data
 TARGET = 'target'
 FEATURES = ['dose', 'time']
 GROUP_ID = 'series'
@@ -57,13 +59,13 @@ class MockPredictionModel:
                        'target': 0
                 }, ignore_index = True)
                 
-            df[TARGET] = df[TARGET].astype(float)
+        df[TARGET] = df[TARGET].astype(float)
 
-            df['Unnamed'] = df['Unnamed'].astype(int)
-            df['time_idx'] = df['time_idx'].astype(int)
-            df['is_target'] = df['is_target'].astype(int)
-            df['series'] = df['series'].astype(int)
-            return df
+        df['Unnamed'] = df['Unnamed'].astype(int)
+        df['time_idx'] = df['time_idx'].astype(int)
+        df['is_target'] = df['is_target'].astype(int)
+        df['series'] = df['series'].astype(int)
+        return df
     
     def predict(self, data):
         dataset = self.prepare_data(data)
@@ -96,11 +98,60 @@ class MockPredictionModel:
         
         validation_dataloader = validation.to_dataloader(train=False, batch_size=1024, num_workers=0)
         
-        print("wynik", self.model.predict(validation_dataloader))
+        res = self.model.predict(validation_dataloader)
+        print("wynik", res)
+        res = np.array([int(x) for x in res])
         
-        return []
+        return res
 
+def test_model():
+    dataset = pd.read_csv(DATA_PATH)
+
+    n = dataset[GROUP_ID].astype(int).max()
+
+    dataset[TARGET] = dataset[TARGET].astype(float)
+
+    dataset['time_idx'] = dataset['time_idx'].astype(int)
+
+#     dataset['target'] = 0
+    
+#     print(dataset.iloc[:30])
+    
+    training = TimeSeriesDataSet(
+        dataset[dataset[GROUP_ID].apply(lambda x: int(x) < int(n * 0.7))],
+        time_idx="time_idx",
+        target=TARGET,
+        group_ids=[GROUP_ID],
+        min_encoder_length=20,  
+        max_encoder_length=20,
+        min_prediction_length=1,
+        max_prediction_length=1,
+        static_categoricals=[],
+        static_reals=[],
+        time_varying_known_categoricals=[],
+        variable_groups={},  # group of categorical variables can be treated as one variable
+        time_varying_known_reals=["time_idx"],
+        time_varying_unknown_categoricals=[],
+        time_varying_unknown_reals=[TARGET] + FEATURES,
+        add_relative_time_idx=True,
+        add_target_scales=False,
+        add_encoder_length=True,
+        allow_missing_timesteps=True,
+        categorical_encoders={GROUP_ID: NaNLabelEncoder().fit(dataset.series)},
+    )
+
+    validation_dataset = dataset[dataset[GROUP_ID].apply(lambda x: int(x) > int(n * 0.7) and int(x) < int(n * 0.9))]
+    validation = TimeSeriesDataSet.from_dataset(training, validation_dataset,
+                                            min_prediction_idx=0,
+                                            stop_randomization=True)
+    model_temp2 = TemporalFusionTransformer.load_from_checkpoint(model_path)
+    print(model_temp2.predict(validation))
+    
 def main(config_path: str):
+    test_model()
+    
+    return
+    
     config_path = config_path
     config = read_config(config_path)
     config['config_path'] = config_path
