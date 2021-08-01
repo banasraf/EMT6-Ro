@@ -151,9 +151,9 @@ def test_model():
     model_temp2 = TemporalFusionTransformer.load_from_checkpoint(FLAGS.model_path)
     
     
-    actuals = torch.cat([y[0] for (x, y) in iter(test_dataloader)])
+    actuals = torch.cat([y[0] for (x, y) in iter(val_dataloader)])
     
-    print(model_temp2.predict(val_dataloader))
+    print(model_temp2.predict(val_dataloader)[:30])
     print("actuals", actuals[:30])
     
 def main(config_path: str, model_path: str):
