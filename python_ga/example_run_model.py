@@ -1,6 +1,7 @@
 import sys
 import pandas as pd
 import numpy as np
+import torch
 
 from pytorch_forecasting import TimeSeriesDataSet, TemporalFusionTransformer
 from pytorch_forecasting.data import NaNLabelEncoder
@@ -9,8 +10,10 @@ from utils import ConvertRepresentation, get_rand_population, read_config
 from genetic_algorithm import new_genetic_algorithm
 
 from emt6ro.simulation import load_state, load_parameters
+from absl import app, flags
 
-model_path = '../CancerOptimization/optuna_test/trial_1/epoch=171.ckpt'
+flags.DEFINE_string('model_path', '../CancerOptimization/Untitled/OLN-4171/checkpoints/epoch=3-step=543.ckpt', 'Relative path to model')
+FLAGS = flags.FLAGS
 
 DATA_PATH = '../CancerOptimization/data/data.csv' #path to preprocessed csv data
 TARGET = 'target'
@@ -96,7 +99,7 @@ class MockPredictionModel:
             
         validation = TimeSeriesDataSet.from_dataset(validation, dataset, predict=True, stop_randomization=True)
         
-        validation_dataloader = validation.to_dataloader(train=False, batch_size=1024, num_workers=0)
+        validation_dataloader = validation.to_dataloader(train=False, num_workers=0)
         
         res = self.model.predict(validation_dataloader)
         print("wynik", res)
@@ -113,9 +116,9 @@ def test_model():
 
     dataset['time_idx'] = dataset['time_idx'].astype(int)
 
-#     dataset['target'] = 0
+    print(dataset.iloc[:30])
     
-#     print(dataset.iloc[:30])
+#     dataset['target'] = 0
     
     training = TimeSeriesDataSet(
         dataset[dataset[GROUP_ID].apply(lambda x: int(x) < int(n * 0.7))],
@@ -140,14 +143,20 @@ def test_model():
         categorical_encoders={GROUP_ID: NaNLabelEncoder().fit(dataset.series)},
     )
 
-    validation_dataset = dataset[dataset[GROUP_ID].apply(lambda x: int(x) > int(n * 0.7) and int(x) < int(n * 0.9))]
-    validation = TimeSeriesDataSet.from_dataset(training, validation_dataset,
-                                            min_prediction_idx=0,
-                                            stop_randomization=True)
-    model_temp2 = TemporalFusionTransformer.load_from_checkpoint(model_path)
-    print(model_temp2.predict(validation))
+#     validation_dataset = dataset[dataset[GROUP_ID].apply(lambda x: int(x) > int(n * 0.7) and int(x) < int(n * 0.9))]
+#     validation = TimeSeriesDataSet.from_dataset(training, validation_dataset,
+#                                             min_prediction_idx=0,
+#                                             stop_randomization=True)
+    val_dataloader = training.to_dataloader(train=False, num_workers=0)
+    model_temp2 = TemporalFusionTransformer.load_from_checkpoint(FLAGS.model_path)
     
-def main(config_path: str):
+    
+    actuals = torch.cat([y[0] for (x, y) in iter(test_dataloader)])
+    
+    print(model_temp2.predict(val_dataloader))
+    print("actuals", actuals[:30])
+    
+def main(config_path: str, model_path: str):
     test_model()
     
     return
@@ -180,14 +189,18 @@ def main(config_path: str):
 
     new_genetic_algorithm(population=list_protocols, model=model, config=config, converter=converter)
 
-if __name__ == '__main__':
+def dispatch(argv):
     if len(sys.argv) < 2:
         raise Exception(f'Please specify path to yaml config file.\n\nFor example:\n'
                         f'python python_ga/example_run.py '
                         f'python_ga/experiment_config/base__tournament__dose_value_time_value.yaml')
 
     config_path = sys.argv[1]
+    model_path = FLAGS.model_path
     print(f'Using config file: {config_path}')
 
     
-    main(config_path=config_path)
+    main(config_path=config_path, model_path=model_path)
+
+if __name__ == '__main__':
+    app.run(dispatch)
