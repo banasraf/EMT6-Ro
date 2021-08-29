@@ -5,6 +5,8 @@ import torch
 
 from pytorch_forecasting import TimeSeriesDataSet, TemporalFusionTransformer
 from pytorch_forecasting.data import NaNLabelEncoder
+from pytorch_forecasting.data.encoders import GroupNormalizer
+from sklearn.preprocessing import StandardScaler
 
 from utils import ConvertRepresentation, get_rand_population, read_config
 from genetic_algorithm import new_genetic_algorithm
@@ -116,9 +118,9 @@ def test_model():
 
     dataset['time_idx'] = dataset['time_idx'].astype(int)
 
-    print(dataset.iloc[:30])
+#     dataset = dataset[lambda x: x.is_target == 0]
     
-#     dataset['target'] = 0
+#     print(dataset.iloc[:30])
     
     training = TimeSeriesDataSet(
         dataset[dataset[GROUP_ID].apply(lambda x: int(x) < int(n * 0.7))],
@@ -139,15 +141,18 @@ def test_model():
         add_relative_time_idx=True,
         add_target_scales=False,
         add_encoder_length=True,
-        allow_missing_timesteps=True,
         categorical_encoders={GROUP_ID: NaNLabelEncoder().fit(dataset.series)},
     )
 
-#     validation_dataset = dataset[dataset[GROUP_ID].apply(lambda x: int(x) > int(n * 0.7) and int(x) < int(n * 0.9))]
-#     validation = TimeSeriesDataSet.from_dataset(training, validation_dataset,
-#                                             min_prediction_idx=0,
-#                                             stop_randomization=True)
-    val_dataloader = training.to_dataloader(train=False, num_workers=0)
+    print(training.get_parameters())
+    
+    validation_dataset = dataset[dataset[GROUP_ID].apply(lambda x: int(x) > int(n * 0.7) and int(x) < int(n * 0.9))]
+#     validation_dataset['target'] = 0
+    validation = TimeSeriesDataSet.from_dataset(training, validation_dataset,
+                                            min_prediction_idx=0,
+                                            stop_randomization=True)
+                                                
+    val_dataloader = validation.to_dataloader(train=False, num_workers=0)
     model_temp2 = TemporalFusionTransformer.load_from_checkpoint(FLAGS.model_path)
     
     
@@ -156,9 +161,31 @@ def test_model():
     print(model_temp2.predict(val_dataloader)[:30])
     print("actuals", actuals[:30])
     
-def main(config_path: str, model_path: str):
-    test_model()
+def test_model2():
+    dataset = pd.read_csv(DATA_PATH)
+
+    n = dataset[GROUP_ID].astype(int).max()
+
+    dataset[TARGET] = dataset[TARGET].astype(float)
+
+    dataset['time_idx'] = dataset['time_idx'].astype(int)
     
+    parameters = {'time_idx': 'time_idx', 'target': 'target', 'group_ids': ['series'], 'weight': None, 'max_encoder_length': 20, 'min_encoder_length': 20, 'min_prediction_idx': 0, 'min_prediction_length': 1, 'max_prediction_length': 1, 'static_categoricals': [], 'static_reals': ['encoder_length'], 'time_varying_known_categoricals': [], 'time_varying_known_reals': ['time_idx', 'relative_time_idx'], 'time_varying_unknown_categoricals': [], 'time_varying_unknown_reals': ['target', 'dose', 'time'], 'variable_groups': {}, 'constant_fill_strategy': {}, 'allow_missing_timesteps': False, 'lags': {}, 'add_relative_time_idx': True, 'add_target_scales': False, 'add_encoder_length': True, 'target_normalizer': GroupNormalizer(), 'categorical_encoders': {'series': NaNLabelEncoder(), '__group_id__series': NaNLabelEncoder()}, 'scalers': {'encoder_length': StandardScaler(), 'time_idx': StandardScaler(), 'relative_time_idx': StandardScaler(), 'dose': StandardScaler(), 'time': StandardScaler()}, 'randomize_length': None, 'predict_mode': False}
+    
+    validation = TimeSeriesDataSet.from_parameters(parameters, dataset,
+                                            min_prediction_idx=0,
+                                            stop_randomization=True)
+                                                
+    val_dataloader = validation.to_dataloader(train=False, num_workers=0)
+    model_temp2 = TemporalFusionTransformer.load_from_checkpoint(FLAGS.model_path)
+    
+    
+    print(model_temp2.predict(val_dataloader)[:30])
+    
+def main(config_path: str, model_path: str):
+#     test_model()
+    
+    test_model2()
     return
     
     config_path = config_path
