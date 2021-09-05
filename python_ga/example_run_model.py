@@ -14,11 +14,11 @@ from genetic_algorithm import new_genetic_algorithm
 from emt6ro.simulation import load_state, load_parameters
 from absl import app, flags
 
-flags.DEFINE_string('model_path', '../CancerOptimization/Untitled/OLN-4171/checkpoints/epoch=3-step=543.ckpt', 'Relative path to model')
+flags.DEFINE_string('model_path', 'models/model_1.ckpt', 'Relative path to model')
 FLAGS = flags.FLAGS
 
 class MockPredictionModel:
-    TIMESERIES_PATH = 'models/dataset_time_set'
+    TIMESERIES_PATH = 'models/dataset_time_series'
     
     def __init__(self, model):
         self.model = model
@@ -121,8 +121,34 @@ class MockPredictionModel:
         )
         
         training.save(self.TIMESERIES_PATH) 
+        
+    @staticmethod
+    def test_model(model_path):
+        DATA_PATH = '../CancerOptimization/data/data.csv'
+        dataset = pd.read_csv(DATA_PATH)
+
+        dataset['target'] = dataset['target'].astype(float)
+        dataset['time_idx'] = dataset['time_idx'].astype(int)
+        
+        time_series = TimeSeriesDataSet.load('models/dataset_time_set')
+        validation = TimeSeriesDataSet.from_dataset(time_series, dataset)
+        
+        all_dataloader = validation.to_dataloader(train=False, num_workers=0)
+        model = TemporalFusionTransformer.load_from_checkpoint(model_path)
+
+        actuals = torch.cat([y[0] for (x, y) in iter(all_dataloader)])
+        predictions = model.predict(all_dataloader)
+
+        print(f'test mape is {((actuals - predictions).abs() / actuals).mean()}')
+
+        print(f' max mape {max(((actuals - predictions).abs() / actuals))}')
+
+        res = (actuals - predictions).abs() / actuals
+        print(f' max 99 mape {np.quantile(res, .99)}')
+#         print("wynik", res)
+        res = np.array([int(x) for x in res])
     
-def main(config_path: str, model_path: str):    
+def main(config_path: str, model_path: str):
     config_path = config_path
     config = read_config(config_path)
     config['config_path'] = config_path
