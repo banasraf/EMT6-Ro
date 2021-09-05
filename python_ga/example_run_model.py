@@ -21,8 +21,12 @@ DATA_PATH = '../CancerOptimization/data/data.csv' #path to preprocessed csv data
 TARGET = 'target'
 FEATURES = ['dose', 'time']
 GROUP_ID = 'series'
+parameters = {'time_idx': 'time_idx', 'target': 'target', 'group_ids': ['series'], 'weight': None, 'max_encoder_length': 20, 'min_encoder_length': 20, 'min_prediction_idx': 0, 'min_prediction_length': 1, 'max_prediction_length': 1, 'static_categoricals': [], 'static_reals': ['encoder_length'], 'time_varying_known_categoricals': [], 'time_varying_known_reals': ['time_idx', 'relative_time_idx'], 'time_varying_unknown_categoricals': [], 'time_varying_unknown_reals': ['target', 'dose', 'time'], 'variable_groups': {}, 'constant_fill_strategy': {}, 'allow_missing_timesteps': False, 'lags': {}, 'add_relative_time_idx': True, 'add_target_scales': False, 'add_encoder_length': True, 'target_normalizer': GroupNormalizer(), 'categorical_encoders': {'series': NaNLabelEncoder(), '__group_id__series': NaNLabelEncoder()}, 'scalers': {'encoder_length': StandardScaler(), 'time_idx': StandardScaler(), 'relative_time_idx': StandardScaler(), 'dose': StandardScaler(), 'time': StandardScaler()}, 'randomize_length': None, 'predict_mode': False}
 
 class MockPredictionModel:
+
+    
+
     def __init__(self, model):
         self.model = model
     
@@ -74,42 +78,25 @@ class MockPredictionModel:
     
     def predict(self, data):
         dataset = self.prepare_data(data)
-       
-        print(dataset.iloc[:30])            
-        validation = TimeSeriesDataSet(
-            dataset,
-            time_idx="time_idx",
-            target=TARGET,
-            group_ids=[GROUP_ID],
-            min_encoder_length=20,  
-            max_encoder_length=20,
-            min_prediction_length=1,
-            max_prediction_length=1,
-            static_categoricals=[],
-            static_reals=[],
-            time_varying_known_categoricals=[],
-            variable_groups={},  # group of categorical variables can be treated as one variable
-            time_varying_known_reals=["time_idx"],
-            time_varying_unknown_categoricals=[],
-            time_varying_unknown_reals=[TARGET] + FEATURES,
-            add_relative_time_idx=True,
-            add_target_scales=False,
-            add_encoder_length=True,
-            allow_missing_timesteps=True,
-            categorical_encoders={GROUP_ID: NaNLabelEncoder().fit(dataset.series)},
-        )
-            
-        validation = TimeSeriesDataSet.from_dataset(validation, dataset, predict=True, stop_randomization=True)
+        print(dataset[:30])
+        time_series = TimeSeriesDataSet.load('tmp_validation')
+        validation = TimeSeriesDataSet.from_dataset(time_series, dataset)
         
-        validation_dataloader = validation.to_dataloader(train=False, num_workers=0)
+        val_dataloader = validation.to_dataloader(train=False, num_workers=0)
         
-        res = self.model.predict(validation_dataloader)
-        print("wynik", res)
+        model_temp2 = TemporalFusionTransformer.load_from_checkpoint(FLAGS.model_path)
+    
+        print(dataset[:30])
+        print(model_temp2.predict(val_dataloader)[:30])
+    
+        res = self.model.predict(val_dataloader)
+#         print("wynik", res)
         res = np.array([int(x) for x in res])
         
         return res
 
 def test_model():
+    print("\n\ntest_model\n\n")
     dataset = pd.read_csv(DATA_PATH)
 
     n = dataset[GROUP_ID].astype(int).max()
@@ -143,25 +130,21 @@ def test_model():
         add_encoder_length=True,
         categorical_encoders={GROUP_ID: NaNLabelEncoder().fit(dataset.series)},
     )
-
-    print(training.get_parameters())
     
     validation_dataset = dataset[dataset[GROUP_ID].apply(lambda x: int(x) > int(n * 0.7) and int(x) < int(n * 0.9))]
-#     validation_dataset['target'] = 0
+    validation_dataset = validation_dataset.assign(target=0.0)
     validation = TimeSeriesDataSet.from_dataset(training, validation_dataset,
                                             min_prediction_idx=0,
                                             stop_randomization=True)
+    print(validation.save('tmp_validation'))
                                                 
     val_dataloader = validation.to_dataloader(train=False, num_workers=0)
     model_temp2 = TemporalFusionTransformer.load_from_checkpoint(FLAGS.model_path)
     
-    
-    actuals = torch.cat([y[0] for (x, y) in iter(val_dataloader)])
-    
-    print(model_temp2.predict(val_dataloader)[:30])
-    print("actuals", actuals[:30])
+    print("predict", model_temp2.predict(val_dataloader)[:30])
     
 def test_model2():
+    print("\n\ntest_model2\n\n")
     dataset = pd.read_csv(DATA_PATH)
 
     n = dataset[GROUP_ID].astype(int).max()
@@ -169,24 +152,24 @@ def test_model2():
     dataset[TARGET] = dataset[TARGET].astype(float)
 
     dataset['time_idx'] = dataset['time_idx'].astype(int)
+    dataset = dataset.assign(target=0.0)
     
-    parameters = {'time_idx': 'time_idx', 'target': 'target', 'group_ids': ['series'], 'weight': None, 'max_encoder_length': 20, 'min_encoder_length': 20, 'min_prediction_idx': 0, 'min_prediction_length': 1, 'max_prediction_length': 1, 'static_categoricals': [], 'static_reals': ['encoder_length'], 'time_varying_known_categoricals': [], 'time_varying_known_reals': ['time_idx', 'relative_time_idx'], 'time_varying_unknown_categoricals': [], 'time_varying_unknown_reals': ['target', 'dose', 'time'], 'variable_groups': {}, 'constant_fill_strategy': {}, 'allow_missing_timesteps': False, 'lags': {}, 'add_relative_time_idx': True, 'add_target_scales': False, 'add_encoder_length': True, 'target_normalizer': GroupNormalizer(), 'categorical_encoders': {'series': NaNLabelEncoder(), '__group_id__series': NaNLabelEncoder()}, 'scalers': {'encoder_length': StandardScaler(), 'time_idx': StandardScaler(), 'relative_time_idx': StandardScaler(), 'dose': StandardScaler(), 'time': StandardScaler()}, 'randomize_length': None, 'predict_mode': False}
-    
-    validation = TimeSeriesDataSet.from_parameters(parameters, dataset,
-                                            min_prediction_idx=0,
-                                            stop_randomization=True)
+    time_series = TimeSeriesDataSet.load('tmp_validation')
+    validation = TimeSeriesDataSet.from_dataset(time_series, dataset)
                                                 
+#     validation.get_parameters()   
+    
     val_dataloader = validation.to_dataloader(train=False, num_workers=0)
     model_temp2 = TemporalFusionTransformer.load_from_checkpoint(FLAGS.model_path)
     
-    
+    print(dataset[:30])
     print(model_temp2.predict(val_dataloader)[:30])
     
-def main(config_path: str, model_path: str):
+def main(config_path: str, model_path: str):    
 #     test_model()
     
-    test_model2()
-    return
+#     test_model2()
+#     return
     
     config_path = config_path
     config = read_config(config_path)
