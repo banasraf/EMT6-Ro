@@ -17,16 +17,9 @@ from absl import app, flags
 flags.DEFINE_string('model_path', '../CancerOptimization/Untitled/OLN-4171/checkpoints/epoch=3-step=543.ckpt', 'Relative path to model')
 FLAGS = flags.FLAGS
 
-DATA_PATH = '../CancerOptimization/data/data.csv' #path to preprocessed csv data
-TARGET = 'target'
-FEATURES = ['dose', 'time']
-GROUP_ID = 'series'
-parameters = {'time_idx': 'time_idx', 'target': 'target', 'group_ids': ['series'], 'weight': None, 'max_encoder_length': 20, 'min_encoder_length': 20, 'min_prediction_idx': 0, 'min_prediction_length': 1, 'max_prediction_length': 1, 'static_categoricals': [], 'static_reals': ['encoder_length'], 'time_varying_known_categoricals': [], 'time_varying_known_reals': ['time_idx', 'relative_time_idx'], 'time_varying_unknown_categoricals': [], 'time_varying_unknown_reals': ['target', 'dose', 'time'], 'variable_groups': {}, 'constant_fill_strategy': {}, 'allow_missing_timesteps': False, 'lags': {}, 'add_relative_time_idx': True, 'add_target_scales': False, 'add_encoder_length': True, 'target_normalizer': GroupNormalizer(), 'categorical_encoders': {'series': NaNLabelEncoder(), '__group_id__series': NaNLabelEncoder()}, 'scalers': {'encoder_length': StandardScaler(), 'time_idx': StandardScaler(), 'relative_time_idx': StandardScaler(), 'dose': StandardScaler(), 'time': StandardScaler()}, 'randomize_length': None, 'predict_mode': False}
-
 class MockPredictionModel:
-
+    TIMESERIES_PATH = 'models/dataset_time_set'
     
-
     def __init__(self, model):
         self.model = model
     
@@ -68,7 +61,7 @@ class MockPredictionModel:
                        'target': 0
                 }, ignore_index = True)
                 
-        df[TARGET] = df[TARGET].astype(float)
+        df['target'] = df['target'].astype(float)
 
         df['Unnamed'] = df['Unnamed'].astype(int)
         df['time_idx'] = df['time_idx'].astype(int)
@@ -77,100 +70,59 @@ class MockPredictionModel:
         return df
     
     def predict(self, data):
+#         self.save_time_series()
         dataset = self.prepare_data(data)
-        print(dataset[:30])
-        time_series = TimeSeriesDataSet.load('tmp_validation')
+        
+        time_series = TimeSeriesDataSet.load(self.TIMESERIES_PATH)
         validation = TimeSeriesDataSet.from_dataset(time_series, dataset)
         
         val_dataloader = validation.to_dataloader(train=False, num_workers=0)
-        
-        model_temp2 = TemporalFusionTransformer.load_from_checkpoint(FLAGS.model_path)
-    
-        print(dataset[:30])
-        print(model_temp2.predict(val_dataloader)[:30])
     
         res = self.model.predict(val_dataloader)
-#         print("wynik", res)
+        print("wynik", res)
         res = np.array([int(x) for x in res])
         
         return res
 
-def test_model():
-    print("\n\ntest_model\n\n")
-    dataset = pd.read_csv(DATA_PATH)
+    def save_time_series(self):
+        print('save_time_series')
+        DATA_PATH = '../CancerOptimization/data/data.csv'
+        FEATURES = ['dose', 'time']
+        GROUP_ID = 'series'
+        
+        dataset = pd.read_csv(DATA_PATH)
 
-    n = dataset[GROUP_ID].astype(int).max()
+        n = dataset[GROUP_ID].astype(int).max()
 
-    dataset[TARGET] = dataset[TARGET].astype(float)
+        dataset['target'] = dataset['target'].astype(float)
 
-    dataset['time_idx'] = dataset['time_idx'].astype(int)
+        dataset['time_idx'] = dataset['time_idx'].astype(int)
 
-#     dataset = dataset[lambda x: x.is_target == 0]
-    
-#     print(dataset.iloc[:30])
-    
-    training = TimeSeriesDataSet(
-        dataset[dataset[GROUP_ID].apply(lambda x: int(x) < int(n * 0.7))],
-        time_idx="time_idx",
-        target=TARGET,
-        group_ids=[GROUP_ID],
-        min_encoder_length=20,  
-        max_encoder_length=20,
-        min_prediction_length=1,
-        max_prediction_length=1,
-        static_categoricals=[],
-        static_reals=[],
-        time_varying_known_categoricals=[],
-        variable_groups={},  # group of categorical variables can be treated as one variable
-        time_varying_known_reals=["time_idx"],
-        time_varying_unknown_categoricals=[],
-        time_varying_unknown_reals=[TARGET] + FEATURES,
-        add_relative_time_idx=True,
-        add_target_scales=False,
-        add_encoder_length=True,
-        categorical_encoders={GROUP_ID: NaNLabelEncoder().fit(dataset.series)},
-    )
-    
-    validation_dataset = dataset[dataset[GROUP_ID].apply(lambda x: int(x) > int(n * 0.7) and int(x) < int(n * 0.9))]
-    validation_dataset = validation_dataset.assign(target=0.0)
-    validation = TimeSeriesDataSet.from_dataset(training, validation_dataset,
-                                            min_prediction_idx=0,
-                                            stop_randomization=True)
-    print(validation.save('tmp_validation'))
-                                                
-    val_dataloader = validation.to_dataloader(train=False, num_workers=0)
-    model_temp2 = TemporalFusionTransformer.load_from_checkpoint(FLAGS.model_path)
-    
-    print("predict", model_temp2.predict(val_dataloader)[:30])
-    
-def test_model2():
-    print("\n\ntest_model2\n\n")
-    dataset = pd.read_csv(DATA_PATH)
-
-    n = dataset[GROUP_ID].astype(int).max()
-
-    dataset[TARGET] = dataset[TARGET].astype(float)
-
-    dataset['time_idx'] = dataset['time_idx'].astype(int)
-    dataset = dataset.assign(target=0.0)
-    
-    time_series = TimeSeriesDataSet.load('tmp_validation')
-    validation = TimeSeriesDataSet.from_dataset(time_series, dataset)
-                                                
-#     validation.get_parameters()   
-    
-    val_dataloader = validation.to_dataloader(train=False, num_workers=0)
-    model_temp2 = TemporalFusionTransformer.load_from_checkpoint(FLAGS.model_path)
-    
-    print(dataset[:30])
-    print(model_temp2.predict(val_dataloader)[:30])
+        training = TimeSeriesDataSet(
+            dataset[dataset[GROUP_ID].apply(lambda x: int(x) < int(n * 0.7))],
+            time_idx='time_idx',
+            target='target',
+            group_ids=[GROUP_ID],
+            min_encoder_length=20,  
+            max_encoder_length=20,
+            min_prediction_length=1,
+            max_prediction_length=1,
+            static_categoricals=[],
+            static_reals=[],
+            time_varying_known_categoricals=[],
+            variable_groups={},
+            time_varying_known_reals=['time_idx'],
+            time_varying_unknown_categoricals=[],
+            time_varying_unknown_reals=['target'] + FEATURES,
+            add_relative_time_idx=True,
+            add_target_scales=False,
+            add_encoder_length=True,
+            categorical_encoders={GROUP_ID: NaNLabelEncoder().fit(dataset.series)},
+        )
+        
+        training.save(self.TIMESERIES_PATH) 
     
 def main(config_path: str, model_path: str):    
-#     test_model()
-    
-#     test_model2()
-#     return
-    
     config_path = config_path
     config = read_config(config_path)
     config['config_path'] = config_path
