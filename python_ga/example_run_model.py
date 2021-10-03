@@ -13,17 +13,29 @@ from genetic_algorithm import new_genetic_algorithm
 
 from emt6ro.simulation import load_state, load_parameters
 from absl import app, flags
+import wget
+import importlib
+import os
 
 flags.DEFINE_string('model_path', 'models/model_1.ckpt', 'Relative path to model')
 FLAGS = flags.FLAGS
 
+
 class MockPredictionModel:
+    """ Model for predicting output based on already trained ML model """
     TIMESERIES_PATH = 'models/dataset_time_series'
     
     def __init__(self, model):
         self.model = model
     
     def prepare_data(self, data):
+        """ 
+            Converting data from list of times and doses to DataFrame format
+        
+            parameters: self, list of  pairs (time, dose)
+            
+            returns: The same but in the same format as dataset
+        """
         df = pd.DataFrame(columns=['Unnamed', 'time', 'dose', 'series', 'time_idx', 'is_target', 'target'])
         
         for series, protocol in enumerate(data):
@@ -70,7 +82,14 @@ class MockPredictionModel:
         return df
     
     def predict(self, data):
-#         self.save_time_series()
+        """ Transforms data and predicts output based on train model 
+        
+            Parameters: self, list of protocols
+            
+            Return: list of results for each protocol based on train model
+        """
+        print(data)
+        self.save_time_series()
         dataset = self.prepare_data(data)
         
         time_series = TimeSeriesDataSet.load(self.TIMESERIES_PATH)
@@ -79,16 +98,28 @@ class MockPredictionModel:
         val_dataloader = validation.to_dataloader(train=False, num_workers=0)
     
         res = self.model.predict(val_dataloader)
-        print("wynik", res)
+#         print("wynik", res)
         res = np.array([int(x) for x in res])
         
         return res
 
     def save_time_series(self):
-        print('save_time_series')
-        DATA_PATH = '../CancerOptimization/data/data.csv'
+        """ Download preprocessing file and creates data in a format suited for temporal fusion """
+        PREPROCESS_URL = 'https://raw.githubusercontent.com/AWarno/CancerOptimization/main/preprocess_data.py'
+        FILE_PATH = 'data/preprocess_data.py'
+        DATA_PATH = 'data/data.csv'
         FEATURES = ['dose', 'time']
         GROUP_ID = 'series'
+        
+        # Data file already exists so we don't need to generate it
+        if os.path.isfile(DATA_PATH):
+            return
+        
+        # Preprocessing file already exists so we don't need to download it again
+        if not os.path.isfile(FILE_PATH):
+            wget.download(PREPROCESS_URL, FILE_PATH)
+        
+        os.system('python ' + FILE_PATH)
         
         dataset = pd.read_csv(DATA_PATH)
 
@@ -120,11 +151,15 @@ class MockPredictionModel:
             categorical_encoders={GROUP_ID: NaNLabelEncoder().fit(dataset.series)},
         )
         
-        training.save(self.TIMESERIES_PATH) 
+        training.save(self.TIMESERIES_PATH)
         
     @staticmethod
     def test_model(model_path):
-        DATA_PATH = '../CancerOptimization/data/data.csv'
+        """ Tests results of given model on dataset """
+        DATA_PATH = 'data/data.csv'
+        if not os.path.isfile(FILE_PATH):
+            wget.download(PREPROCESS_URL, FILE_PATH)
+        
         dataset = pd.read_csv(DATA_PATH)
 
         dataset['target'] = dataset['target'].astype(float)
@@ -180,8 +215,8 @@ def main(config_path: str, model_path: str):
 def dispatch(argv):
     if len(sys.argv) < 2:
         raise Exception(f'Please specify path to yaml config file.\n\nFor example:\n'
-                        f'python python_ga/example_run.py '
-                        f'python_ga/experiment_config/base__tournament__dose_value_time_value.yaml')
+                        f'python python_ga/example_run_model.py '
+                        f'python_ga/experiments_grid_search_retain_parent_protocols_inversed/grid_search__simple_selection__cross_two_points__mutate_time_dose_annealing__interval__dose_1.25__6h.yaml')
 
     config_path = sys.argv[1]
     model_path = FLAGS.model_path
