@@ -77,6 +77,14 @@ class Simulation {
 
   void setProtocols(const Protocol *protocols);
 
+  size_t batchSize() const {
+    return batch_size;
+  }
+
+  Dims getDims() const {
+    return dims;
+  }
+
  private:
   void populateLattices();
 

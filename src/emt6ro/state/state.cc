@@ -16,7 +16,7 @@ HostGrid<Site> loadFromFile(const std::string& filename, const Parameters &param
   for (int32_t r = 0; r < h + 2; ++r) {
     for (int32_t c = 0; c < w + 2; ++c) {
       auto &site = view(r, c);
-      if (r == 0 || r == h - 1 || c == 0 || c == w - 1) {
+      if (r == 0 || r == h + 1 || c == 0 || c == w + 1) {
         site.state = Site::State::MOCKED;
         site.substrates = parameters.external_levels;
       } else {

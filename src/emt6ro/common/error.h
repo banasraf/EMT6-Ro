@@ -24,7 +24,7 @@ inline std::string make_string() {
 
 #define ENFORCE(COND, ...) \
 do {if \
-  (!COND) throw std::runtime_error(std::string("Check failed: " #COND "; ") \
+  (!(COND)) throw std::runtime_error(std::string("Check failed: " #COND "; ") \
                 + make_string(__VA_ARGS__)); \
 } while (0);
 

@@ -1,5 +1,7 @@
 cmake_minimum_required(VERSION 3.10)
-project(emt6ro-simulation LANGUAGES CXX CUDA)
+project(emt6ro-simulation LANGUAGES CUDA CXX)
+
+
 set(CMAKE_CXX_STANDARD 14)
 set(CMAKE_CUDA_STANDARD 14)
 
@@ -11,6 +13,11 @@ add_compile_options($<$<AND:$<COMPILE_LANGUAGE:CUDA>,$<BOOL:${CUDA_DEBUG}>>:-G>)
 if(CUDA_DEBUG)
     message("-- CUDA DEBUG ENABLED")
 endif(CUDA_DEBUG)
+
+# add_compile_options($<$<COMPILE_LANGUAGE:CUDA>:
+#                     -allow-unsuppported-compiler
+#                     >)
+
 set(CMAKE_POSITION_INDEPENDENT_CODE ON)
 add_compile_options($<$<CONFIG:DEBUG>:-O0>)
 
@@ -23,7 +30,7 @@ add_custom_target(docs COMMAND mkdir -p docs
 include(cmake/CollectSources.cmake)
 
 set(EMT6RO_BUILD_TESTS TRUE)
-set(EMT6RO_BUILD_BENCH TRUE)
+set(EMT6RO_BUILD_BENCH OFF)
 set(EMT6RO_BUILD_EXAMPLES TRUE)
 if (${EMT6RO_BUILD_ONLY_LIB})
     set(EMT6RO_BUILD_TESTS FALSE)

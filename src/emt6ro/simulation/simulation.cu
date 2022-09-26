@@ -195,7 +195,8 @@ void Simulation::run(uint32_t nsteps) {
 }
 
 void Simulation::getData(Site *h_data, uint32_t sample) {
-  ENFORCE(sample < batch_size, "");
+  ENFORCE(sample < batch_size, make_string("Cannot read data from sample ",
+                                           sample, ". Batch size: ", batch_size));
   cudaMemcpyAsync(h_data, data.data() + sample * dims.vol(),
             dims.vol() * sizeof(Site), cudaMemcpyDeviceToHost, str.stream_);
   sync();

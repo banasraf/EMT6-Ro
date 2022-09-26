@@ -16,6 +16,13 @@ if (${EMT6RO_BUILD_TESTS})
     target_include_directories(emt6ro-tests PRIVATE ${PROJECT_SOURCE_DIR}/src)
     target_link_libraries(emt6ro-tests PRIVATE gtest)
     target_include_directories(emt6ro-tests PRIVATE ${PROJECT_SOURCE_DIR}/third-party/json)
+    set_target_properties(emt6ro-tests
+   PROPERTIES
+       CUDA_SEPARABLE_COMPILATION ON
+       CUDA_RESOLVE_DEVICE_SYMBOLS ON
+       INTERPROCEDURAL_OPTIMIZATION $<$<CONFIG:Release>:...>
+)
+
 endif()
 
 if (${EMT6RO_BUILD_BENCH})

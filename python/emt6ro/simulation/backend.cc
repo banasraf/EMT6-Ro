@@ -75,8 +75,8 @@ class Experiment {
   }
 
   static int32_t acc_volume(const std::vector<HostGrid<Site>*> &tumors) {
-    int size = 0; 
-    for (auto &t : tumors) size += t->view().dims.vol(); 
+    int size = 0;
+    for (auto &t : tumors) size += t->view().dims.vol();
     return size;
   }
 
@@ -88,7 +88,8 @@ class Experiment {
   }
 
   void addIrradiations(const std::vector<std::vector<std::pair<int, float>>> &ps) {
-    ENFORCE(protocols.size() == protocols_num, "Wrong number of protocols.");
+    ENFORCE(ps.size() == protocols_num,
+            make_string("Wrong number of protocols. Expected: ", protocols_num));
     device::Guard d_g{device_id};
     for (int i = 0; i < protocols_num; ++i) {
       auto p = protocols[i * tumors_num * tests_num];
@@ -105,7 +106,7 @@ class Experiment {
       device::Guard d_g{device_id};
       simulation.run(nsteps);
       std::vector<uint32_t> res(tumors_num * tests_num * protocols_num);
-      simulation.getResults(res.data()); 
+      simulation.getResults(res.data());
       return res;
     });
   }
@@ -118,11 +119,46 @@ class Experiment {
     return results_.get();
   }
 
+  std::vector<HostGrid<Site>> state() {
+    device::Guard dg{device_id};
+    std::vector<HostGrid<Site>> states;
+    size_t bs = simulation.batchSize();
+    states.reserve(bs);
+    for (size_t s = 0; s < bs; ++s) {
+      states.push_back(HostGrid<Site>(simulation.getDims()));
+      auto &state = states.back();
+      simulation.getData(state.view().data, s);
+    }
+    return states;
+  }
+
 };
+
+static py::array_t<float> getIrradiation(const HostGrid<Site> &state) {
+  const float *origin = &state.view().data->cell.irradiation;
+  std::array<ssize_t, 2> shape = {state.view().dims.height, state.view().dims.width};
+  std::array<ssize_t, 2> stride = {state.view().dims.width * sizeof(Site), sizeof(Site)};
+  py::buffer_info buffer(const_cast<float*>(origin), shape, stride, true);
+  return py::array(buffer);
+}
+
+static py::array_t<Site::State> getOccupancy(const HostGrid<Site> &state) {
+  const Site::State *origin = &state.view().data->state;
+  std::array<ssize_t, 2> shape = {state.view().dims.height, state.view().dims.width};
+  std::array<ssize_t, 2> stride = {state.view().dims.width * sizeof(Site), sizeof(Site)};
+  py::buffer_info buffer(const_cast<Site::State*>(origin), shape, stride, true);
+  return py::array(buffer);
+}
 
 PYBIND11_MODULE(backend, m) {
   PYBIND11_NUMPY_DTYPE(Substrates, cho, ox, gi);
   PYBIND11_NUMPY_DTYPE(Coords, r, c);
+
+  py::enum_<Site::State>(m, "SiteState")
+      .value("Vacant", Site::State::VACANT)
+      .value("Occupied", Site::State::OCCUPIED)
+      .value("Mocked", Site::State::MOCKED)
+      .export_values();
 
   py::class_<Coords>(m, "Coords")
       .def_readwrite("r", &Coords::r)
@@ -131,7 +167,9 @@ PYBIND11_MODULE(backend, m) {
         return make_string("{r: ", self.r, ", c: ", self.c, "}");
       });
 
-  py::class_<HostGrid<Site>>(m, "TumorState");
+  py::class_<HostGrid<Site>>(m, "TumorState")
+      .def("irradiation", &getIrradiation, py::return_value_policy::reference_internal)
+      .def("occupancy", &getOccupancy, py::return_value_policy::reference_internal);
 
   py::class_<Parameters>(m, "Parameters");
 
@@ -140,9 +178,10 @@ PYBIND11_MODULE(backend, m) {
       .def("run", &Experiment::run)
       .def("results", &Experiment::results)
       .def("add_irradiations", &Experiment::addIrradiations)
-      .def("reset", &Experiment::reset);
+      .def("reset", &Experiment::reset)
+      .def("state", &Experiment::state);
 
-  m.def("load_parameters", &Parameters::loadFromJSONFile);  
+  m.def("load_parameters", &Parameters::loadFromJSONFile);
 
   m.def("load_state", &loadFromFile);
 

@@ -63,3 +63,9 @@ class Experiment:
 		Restore the initial states of the simulations
 		"""
 		self._experiment.reset()
+
+	def state(self):
+		"""
+		Get all of the simlation grids
+		"""
+		return self._experiment.state()
