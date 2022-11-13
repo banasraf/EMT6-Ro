@@ -172,7 +172,7 @@ def new_genetic_algorithm(population, model, config, converter):
 
     neptune.init('TensorCell/cancertreatment')
     neptune.create_experiment(name="Grid Search", params=config)
-    neptune.append_tag('grid_search')
+    neptune.append_tag('evaluate_protocols')
     neptune.append_tag('inversed')
     neptune.append_tag(config['selection']['type'])
     neptune.append_tag(config['crossover']['type'])
