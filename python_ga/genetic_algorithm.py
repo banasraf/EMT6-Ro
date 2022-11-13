@@ -1,4 +1,5 @@
 import logging
+import os
 import random
 
 import neptune
@@ -158,7 +159,7 @@ def next_generation(population, pop_fitness, config):
 # ======================================================================================================================
 # GENETIC ALGORITHM
 # ======================================================================================================================
-def new_genetic_algorithm(population, model, config, converter):
+def new_genetic_algorithm(population, model, config, converter, protocol_path):
     """
     Główna metoda algorytmu - zawiera pętlę, która dla każdego pokolenia:
     1. Oblicza wartość fitness osobników w populacji;
@@ -172,16 +173,9 @@ def new_genetic_algorithm(population, model, config, converter):
 
     neptune.init('TensorCell/cancertreatment')
     neptune.create_experiment(name="Grid Search", params=config)
-    neptune.append_tag('evaluate_protocols')
+    neptune.append_tag('evaluate_fixed_interval_protocols')
     neptune.append_tag('inversed')
-    neptune.append_tag(config['selection']['type'])
-    neptune.append_tag(config['crossover']['type'])
-    neptune.append_tag(f"{int(config['time_interval_hours'])}h")
-    for mutation_type in config['mutations'].keys():
-        neptune.append_tag(mutation_type)
-        neptune.append_tag(str(f"mut_proba {config['mutations'][mutation_type]['mut_prob']}"))
-        if config['selection']['type'] != 'simple_selection' and config['selection']['type'] != 'roulette_selection':
-            neptune.append_tag(str(f"select_proba {config['selection']['probability']}"))
+    neptune.append_tag(os.path.basename(protocol_path))
 
     n_generation = 0
 

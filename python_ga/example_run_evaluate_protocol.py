@@ -42,7 +42,9 @@ def main(config_path: str, protocol_path: str):
         for protocol in pair_protocols
     ]
 
-    new_genetic_algorithm(population=list_protocols, model=model_emt, config=config, converter=converter)
+    new_genetic_algorithm(
+        population=list_protocols, model=model_emt, config=config, converter=converter, protocol_path=protocol_path,
+    )
 
 
 if __name__ == '__main__':
