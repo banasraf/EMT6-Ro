@@ -1,4 +1,5 @@
 import logging
+import os
 import random
 
 import neptune
@@ -18,6 +19,7 @@ from selection import (round_select_n,
                        tournament_selection_tuned)
 from utils import calculate_fitness, calculate_probability_annealing, store_fitness_and_populations
 
+
 logging.basicConfig(
     format="%(asctime)s [%(levelname)s] | %(name)s | %(funcName)s: %(message)s", level=logging.INFO, datefmt='%I:%M:%S')
 logger = logging.getLogger()
@@ -36,10 +38,10 @@ def mutations(population, config, iteration):
     :return: population:    list
     """
     mutation = {
-        'mutate_swap': mutate_swap,
-        'mutate_dose_value': mutate_dose_value,
-        'mutate_time_value': mutate_time_value,
-        'mutate_split': mutate_split,
+        'mutate_swap':         mutate_swap,
+        'mutate_dose_value':   mutate_dose_value,
+        'mutate_time_value':   mutate_time_value,
+        'mutate_split':     mutate_split,
     }
 
     population_part_to_mutate = population[config['no_of_retaining_parents']:]
@@ -86,10 +88,10 @@ def create_offspring(pop_size, selected_individuals, retaining_parents, config):
     :param config:                  dict
     :return: new_population:        list
     """
-    cross = {'cross_uniform': cross_uniform,
-             'cross_one_point': cross_one_point,
-             'cross_two_points': cross_two_points,
-             'normalized_crossover': normalized_crossover}
+    cross = {'cross_uniform':               cross_uniform,
+             'cross_one_point':             cross_one_point,
+             'cross_two_points':            cross_two_points,
+             'normalized_crossover':        normalized_crossover}
     offspring_pairs = int((pop_size - len(retaining_parents)) / 2)
     new_population = [genome for genome in retaining_parents]
     parent_index = cycle(range(len(selected_individuals)))
@@ -127,10 +129,10 @@ def next_generation(population, pop_fitness, config):
         select_n=config['retained_parent_protocols'], pop_size=len(population))
 
     selection = {
-        'simple_selection': simple_selection,
-        'tournament_selection_classic': tournament_selection_classic,
-        'tournament_selection_tuned': tournament_selection_tuned,
-        'roulette_selection': roulette_selection,
+        'simple_selection':                 simple_selection,
+        'tournament_selection_classic':     tournament_selection_classic,
+        'tournament_selection_tuned':       tournament_selection_tuned,
+        'roulette_selection':               roulette_selection,
     }
     retaining_parents = selection['simple_selection'](
         population=population,
@@ -157,7 +159,7 @@ def next_generation(population, pop_fitness, config):
 # ======================================================================================================================
 # GENETIC ALGORITHM
 # ======================================================================================================================
-def new_genetic_algorithm(population, model, config, converter):
+def new_genetic_algorithm(population, model, config, converter, protocol_path):
     """
     Główna metoda algorytmu - zawiera pętlę, która dla każdego pokolenia:
     1. Oblicza wartość fitness osobników w populacji;
@@ -171,16 +173,9 @@ def new_genetic_algorithm(population, model, config, converter):
 
     neptune.init('TensorCell/cancertreatment')
     neptune.create_experiment(name="Grid Search", params=config)
-    neptune.append_tag('grid_search')
+    neptune.append_tag('evaluate_fixed_interval_protocols')
     neptune.append_tag('inversed')
-    neptune.append_tag(config['selection']['type'])
-    neptune.append_tag(config['crossover']['type'])
-    neptune.append_tag(f"{int(config['time_interval_hours'])}h")
-    for mutation_type in config['mutations'].keys():
-        neptune.append_tag(mutation_type)
-        neptune.append_tag(str(f"mut_proba {config['mutations'][mutation_type]['mut_prob']}"))
-        if config['selection']['type'] != 'simple_selection' and config['selection']['type'] != 'roulette_selection':
-            neptune.append_tag(str(f"select_proba {config['selection']['probability']}"))
+    neptune.append_tag(os.path.basename(protocol_path))
 
     n_generation = 0
 
@@ -190,8 +185,9 @@ def new_genetic_algorithm(population, model, config, converter):
 
     date1 = datetime.now()
     paired_population = converter.convert_population_lists_to_pairs(protocols=population)
-    pop_fitness = calculate_fitness(paired_population=paired_population, model=model)
 
+    print('paired_population 1',  paired_population)
+    pop_fitness = calculate_fitness(paired_population=paired_population, model=model)
     all_fitness, all_populations = store_fitness_and_populations(
         all_fitness=[],
         all_populations=[],
@@ -201,32 +197,10 @@ def new_genetic_algorithm(population, model, config, converter):
     logger.info(f'Initial fitness value calculated | Best fit: {max(pop_fitness)} '
                 f'| For a starting protocol {paired_population[np.argmax(pop_fitness)]}')
 
-    date2 = date1
-    date1 = datetime.now()
-
-    logger.info("Time: " + str(date1 - date2))
-
-    while n_generation <= config['max_iter'] and max(pop_fitness) < config['stop_fitness']:
+    while n_generation < config['max_iter'] and max(pop_fitness) < config['stop_fitness']:
         n_generation += 1
 
-        # nowe pokolenie
-        population = next_generation(population=population, pop_fitness=pop_fitness, config=config)
-
-        # mutacje
-        population = mutations(population=population, config=config, iteration=n_generation)
-
-        # population conversion
-        paired_population = converter.convert_population_lists_to_pairs(protocols=population)
-
-        # fitness
-        pop_fitness = calculate_fitness(paired_population=paired_population, model=model)
-
         best_protocol = paired_population[np.argmax(pop_fitness)]
-        metrics = collect_metrics(n_generation=n_generation, pop_fitness=pop_fitness, metrics=metrics)
-
-        logger.info(f'Generation: {n_generation} | '
-                    f'Best fit: {max(pop_fitness)} | '
-                    f'For a protocol {best_protocol}')
 
         neptune.log_metric('iteration', n_generation)
         neptune.log_metric('best_fitness', max(pop_fitness))
@@ -240,11 +214,58 @@ def new_genetic_algorithm(population, model, config, converter):
         logger.info("Time: " + str(date1 - date2))
 
         all_fitness, all_populations = store_fitness_and_populations(
-            all_fitness=all_fitness,
-            all_populations=all_populations,
+            all_fitness=[],
+            all_populations=[],
             fitness=pop_fitness,
             paired_population=paired_population,
         )
+
+    # date2 = date1
+    # date1 = datetime.now()
+    #
+    # logger.info("Time: " + str(date1 - date2))
+    #
+    # while n_generation < config['max_iter'] and max(pop_fitness) < config['stop_fitness']:
+    #     n_generation += 1
+    #
+    #     # nowe pokolenie
+    #     population = next_generation(population=population, pop_fitness=pop_fitness, config=config)
+    #     print('generated', population)
+    #     # mutacje
+    #     population = mutations(population=population, config=config, iteration=n_generation)
+    #
+    #     # population conversion
+    #     paired_population = converter.convert_population_lists_to_pairs(protocols=population)
+    #
+    #     print('paired_population', paired_population)
+    #     # fitness
+    #     pop_fitness = calculate_fitness(paired_population=paired_population, model=model)
+    #
+    #     print('pop_fitness', pop_fitness)
+    #     best_protocol = paired_population[np.argmax(pop_fitness)]
+    #     metrics = collect_metrics(n_generation=n_generation, pop_fitness=pop_fitness, metrics=metrics)
+    #
+    #     logger.info(f'Generation: {n_generation} | '
+    #                 f'Best fit: {max(pop_fitness)} | '
+    #                 f'For a protocol {best_protocol}')
+    #
+    #     # neptune.log_metric('iteration', n_generation)
+    #     # neptune.log_metric('best_fitness', max(pop_fitness))
+    #     # neptune.log_metric('avg_fitness', np.mean(pop_fitness))
+    #     # neptune.log_text('best_protocol', f'Protocol id: {np.argmax(pop_fitness)} | {best_protocol}')
+    #     # neptune.log_text('protocols', str({i: value for i, value in enumerate(paired_population)}))
+    #
+    #     date2 = date1
+    #     date1 = datetime.now()
+    #
+    #     logger.info("Time: " + str(date1 - date2))
+    #
+    #     all_fitness, all_populations = store_fitness_and_populations(
+    #         all_fitness=all_fitness,
+    #         all_populations=all_populations,
+    #         fitness=pop_fitness,
+    #         paired_population=paired_population,
+    #     )
 
     show_metrics(metrics=metrics, all_fitness=all_fitness, all_populations=all_populations, config=config)
     save_metrics(metrics=metrics, all_fitness=all_fitness, all_populations=all_populations, config=config)

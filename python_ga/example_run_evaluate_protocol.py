@@ -3,7 +3,7 @@ import sys
 import json
 
 from utils import ConvertRepresentation, get_rand_population, ModelWrapper, read_config
-from genetic_algorithm import new_genetic_algorithm
+from genetic_algorithm_for_evaluation import new_genetic_algorithm
 
 from emt6ro.simulation import load_state, load_parameters
 from emt6ro.ga_model import EMT6RoModel
@@ -32,7 +32,7 @@ def main(config_path: str, protocol_path: str):
 
     hour_steps = config['hour_steps']
     protocol_resolution = config['protocol_resolution']
-    #model = MockPredictionModel()
+    # model = MockPredictionModel()
     converter = ConvertRepresentation(hour_steps=hour_steps, protocol_resolution=protocol_resolution)
 
     pair_protocols = [protocol]
