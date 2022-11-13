@@ -182,11 +182,12 @@ def new_genetic_algorithm(population, model, config, converter, protocol_path):
     metrics = pd.DataFrame(columns=['generation', 'best_fit', 'avg_fit'])
 
     logger.info('Initialize computation')
-    
+
     date1 = datetime.now()
     paired_population = converter.convert_population_lists_to_pairs(protocols=population)
-    pop_fitness = calculate_fitness(paired_population=paired_population, model=model)
 
+    print('paired_population 1',  paired_population)
+    pop_fitness = calculate_fitness(paired_population=paired_population, model=model)
     all_fitness, all_populations = store_fitness_and_populations(
         all_fitness=[],
         all_populations=[],
@@ -196,32 +197,10 @@ def new_genetic_algorithm(population, model, config, converter, protocol_path):
     logger.info(f'Initial fitness value calculated | Best fit: {max(pop_fitness)} '
                 f'| For a starting protocol {paired_population[np.argmax(pop_fitness)]}')
 
-    date2 = date1
-    date1 = datetime.now()
-
-    logger.info("Time: " + str(date1 - date2))
-
-    while n_generation <= config['max_iter'] and max(pop_fitness) < config['stop_fitness']:
+    while n_generation < config['max_iter'] and max(pop_fitness) < config['stop_fitness']:
         n_generation += 1
 
-        # nowe pokolenie
-        population = next_generation(population=population, pop_fitness=pop_fitness, config=config)
-
-        # mutacje
-        population = mutations(population=population, config=config, iteration=n_generation)
-
-        # population conversion
-        paired_population = converter.convert_population_lists_to_pairs(protocols=population)
-
-        # fitness
-        pop_fitness = calculate_fitness(paired_population=paired_population, model=model)
-
         best_protocol = paired_population[np.argmax(pop_fitness)]
-        metrics = collect_metrics(n_generation=n_generation, pop_fitness=pop_fitness, metrics=metrics)
-
-        logger.info(f'Generation: {n_generation} | '
-                    f'Best fit: {max(pop_fitness)} | '
-                    f'For a protocol {best_protocol}')
 
         neptune.log_metric('iteration', n_generation)
         neptune.log_metric('best_fitness', max(pop_fitness))
@@ -233,13 +212,60 @@ def new_genetic_algorithm(population, model, config, converter, protocol_path):
         date1 = datetime.now()
 
         logger.info("Time: " + str(date1 - date2))
-        
+
         all_fitness, all_populations = store_fitness_and_populations(
-            all_fitness=all_fitness,
-            all_populations=all_populations,
+            all_fitness=[],
+            all_populations=[],
             fitness=pop_fitness,
             paired_population=paired_population,
         )
+
+    # date2 = date1
+    # date1 = datetime.now()
+    #
+    # logger.info("Time: " + str(date1 - date2))
+    #
+    # while n_generation < config['max_iter'] and max(pop_fitness) < config['stop_fitness']:
+    #     n_generation += 1
+    #
+    #     # nowe pokolenie
+    #     population = next_generation(population=population, pop_fitness=pop_fitness, config=config)
+    #     print('generated', population)
+    #     # mutacje
+    #     population = mutations(population=population, config=config, iteration=n_generation)
+    #
+    #     # population conversion
+    #     paired_population = converter.convert_population_lists_to_pairs(protocols=population)
+    #
+    #     print('paired_population', paired_population)
+    #     # fitness
+    #     pop_fitness = calculate_fitness(paired_population=paired_population, model=model)
+    #
+    #     print('pop_fitness', pop_fitness)
+    #     best_protocol = paired_population[np.argmax(pop_fitness)]
+    #     metrics = collect_metrics(n_generation=n_generation, pop_fitness=pop_fitness, metrics=metrics)
+    #
+    #     logger.info(f'Generation: {n_generation} | '
+    #                 f'Best fit: {max(pop_fitness)} | '
+    #                 f'For a protocol {best_protocol}')
+    #
+    #     # neptune.log_metric('iteration', n_generation)
+    #     # neptune.log_metric('best_fitness', max(pop_fitness))
+    #     # neptune.log_metric('avg_fitness', np.mean(pop_fitness))
+    #     # neptune.log_text('best_protocol', f'Protocol id: {np.argmax(pop_fitness)} | {best_protocol}')
+    #     # neptune.log_text('protocols', str({i: value for i, value in enumerate(paired_population)}))
+    #
+    #     date2 = date1
+    #     date1 = datetime.now()
+    #
+    #     logger.info("Time: " + str(date1 - date2))
+    #
+    #     all_fitness, all_populations = store_fitness_and_populations(
+    #         all_fitness=all_fitness,
+    #         all_populations=all_populations,
+    #         fitness=pop_fitness,
+    #         paired_population=paired_population,
+    #     )
 
     show_metrics(metrics=metrics, all_fitness=all_fitness, all_populations=all_populations, config=config)
     save_metrics(metrics=metrics, all_fitness=all_fitness, all_populations=all_populations, config=config)
