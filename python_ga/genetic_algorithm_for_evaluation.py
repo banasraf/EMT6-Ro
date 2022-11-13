@@ -200,6 +200,9 @@ def new_genetic_algorithm(population, model, config, converter, protocol_path):
     while n_generation < config['max_iter'] and max(pop_fitness) < config['stop_fitness']:
         n_generation += 1
 
+        # fitness
+        pop_fitness = calculate_fitness(paired_population=paired_population, model=model)
+
         best_protocol = paired_population[np.argmax(pop_fitness)]
 
         neptune.log_metric('iteration', n_generation)
