@@ -14,6 +14,17 @@ if(CUDA_DEBUG)
     message("-- CUDA DEBUG ENABLED")
 endif(CUDA_DEBUG)
 
+# Per-event instrumentation counters (repair decisions, kills, divisions,
+# irradiation events, and per-decision irradiation/time-in-repair histograms).
+# Off by default — atomicAdd in hot device code carries a small but real cost.
+# When OFF, the Python API still exposes read_instr_counters / read_instr_histograms;
+# they just return zeros. Enable for calibration / diagnostic runs.
+option(EMT6RO_INSTRUMENT "Enable per-event instrumentation counters" OFF)
+if(EMT6RO_INSTRUMENT)
+    add_compile_definitions(EMT6RO_INSTRUMENT)
+    message("-- EMT6RO instrumentation ENABLED")
+endif()
+
 # add_compile_options($<$<COMPILE_LANGUAGE:CUDA>:
 #                     -allow-unsuppported-compiler
 #                     >)

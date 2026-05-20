@@ -103,6 +103,9 @@ __global__ void cellSimulationKernel(GridView<Site> *grids, uint32_t *occupied_b
     grid(child).state = Site::State::OCCUPIED;
     grid(child).cell = divideCell(grid(parent).cell, params, rand);
     occupied.push(child);
+#ifdef EMT6RO_INSTRUMENT
+    atomicAdd(&g_instr_divisions, 1ULL);
+#endif
   }
 }
 

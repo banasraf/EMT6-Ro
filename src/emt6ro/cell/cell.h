@@ -8,6 +8,7 @@
 #include <cmath>
 #include "emt6ro/common/substrates.h"
 #include "emt6ro/parameters/parameters.h"
+#include "emt6ro/common/instr.h"
 
 namespace emt6ro {
 
@@ -107,7 +108,22 @@ struct Cell {
       if (time_in_repair >= repair_delay_time) {
         float death_prob =
             1 - params.survival_prob.coeff * exp(params.survival_prob.exp_coeff * irradiation);
+#if defined(__CUDA_ARCH__) && defined(EMT6RO_INSTRUMENT)
+        atomicAdd(&g_instr_repair_decisions, 1ULL);
+        atomicAdd(&g_instr_sum_death_prob, static_cast<double>(death_prob));
+        {
+          int bi = static_cast<int>(irradiation / INSTR_HIST_DX);
+          if (bi < 0) bi = 0; if (bi >= INSTR_HIST_N) bi = INSTR_HIST_N - 1;
+          atomicAdd(&g_instr_irr_hist[bi], 1ULL);
+          int bj = static_cast<int>(time_in_repair / INSTR_HIST_DX);
+          if (bj < 0) bj = 0; if (bj >= INSTR_HIST_N) bj = INSTR_HIST_N - 1;
+          atomicAdd(&g_instr_tir_hist[bj], 1ULL);
+        }
+#endif
         if (rand.uniform() < death_prob) {
+#if defined(__CUDA_ARCH__) && defined(EMT6RO_INSTRUMENT)
+          atomicAdd(&g_instr_repair_kills, 1ULL);
+#endif
           return false;
         } else {
           irradiation = 0.f;

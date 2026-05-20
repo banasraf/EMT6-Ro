@@ -85,6 +85,9 @@ __host__ __device__ void Cell::irradiate(float dose, const Parameters::CellRepai
   irradiation = irradiation / (1 + time_in_repair / params.repair_half_time) + dose;
   time_in_repair = 0;
   calcDelayTime(params);
+#if defined(__CUDA_ARCH__) && defined(EMT6RO_INSTRUMENT)
+  atomicAdd(&g_instr_irradiation_events, 1ULL);
+#endif
 }
 
 void Cell::calcDelayTime(const Parameters::CellRepair &params) {

@@ -7,6 +7,7 @@
 #include "emt6ro/diffusion/diffusion.h"
 #include "emt6ro/state/state.h"
 #include "emt6ro/common/error.h"
+#include "emt6ro/common/instr.h"
 
 namespace emt6ro {
 
@@ -150,6 +151,33 @@ static py::array_t<Site::State> getOccupancy(const HostGrid<Site> &state) {
   return py::array(buffer);
 }
 
+template <typename T>
+static py::array_t<T> getFloatFieldGeneric(const HostGrid<Site> &state, const T *origin) {
+  std::array<ssize_t, 2> shape = {state.view().dims.height, state.view().dims.width};
+  std::array<ssize_t, 2> stride = {state.view().dims.width * sizeof(Site), sizeof(Site)};
+  py::buffer_info buffer(const_cast<T*>(origin), shape, stride, true);
+  return py::array(buffer);
+}
+
+static py::array_t<float> getCho(const HostGrid<Site> &s) {
+  return getFloatFieldGeneric<float>(s, &s.view().data->substrates.cho);
+}
+static py::array_t<float> getOx(const HostGrid<Site> &s) {
+  return getFloatFieldGeneric<float>(s, &s.view().data->substrates.ox);
+}
+static py::array_t<float> getGi(const HostGrid<Site> &s) {
+  return getFloatFieldGeneric<float>(s, &s.view().data->substrates.gi);
+}
+static py::array_t<uint8_t> getMode(const HostGrid<Site> &s) {
+  // Cast Cell::MetabolicMode (uint8_t-backed enum) to a raw uint8_t view.
+  return getFloatFieldGeneric<uint8_t>(
+      s, reinterpret_cast<const uint8_t*>(&s.view().data->cell.mode));
+}
+static py::array_t<uint8_t> getPhase(const HostGrid<Site> &s) {
+  return getFloatFieldGeneric<uint8_t>(
+      s, reinterpret_cast<const uint8_t*>(&s.view().data->cell.phase));
+}
+
 PYBIND11_MODULE(backend, m) {
   PYBIND11_NUMPY_DTYPE(Substrates, cho, ox, gi);
   PYBIND11_NUMPY_DTYPE(Coords, r, c);
@@ -169,7 +197,12 @@ PYBIND11_MODULE(backend, m) {
 
   py::class_<HostGrid<Site>>(m, "TumorState")
       .def("irradiation", &getIrradiation, py::return_value_policy::reference_internal)
-      .def("occupancy", &getOccupancy, py::return_value_policy::reference_internal);
+      .def("occupancy", &getOccupancy, py::return_value_policy::reference_internal)
+      .def("cho", &getCho, py::return_value_policy::reference_internal)
+      .def("ox", &getOx, py::return_value_policy::reference_internal)
+      .def("gi", &getGi, py::return_value_policy::reference_internal)
+      .def("mode", &getMode, py::return_value_policy::reference_internal)
+      .def("phase", &getPhase, py::return_value_policy::reference_internal);
 
   py::class_<Parameters>(m, "Parameters");
 
@@ -185,6 +218,17 @@ PYBIND11_MODULE(backend, m) {
 
   m.def("load_state", &loadFromFile);
 
+  py::class_<InstrCounters>(m, "InstrCounters")
+      .def_readonly("repair_decisions", &InstrCounters::repair_decisions)
+      .def_readonly("repair_kills", &InstrCounters::repair_kills)
+      .def_readonly("irradiation_events", &InstrCounters::irradiation_events)
+      .def_readonly("divisions", &InstrCounters::divisions)
+      .def_readonly("sum_death_prob", &InstrCounters::sum_death_prob);
+  m.def("read_instr_counters", &readInstrCounters);
+  m.def("reset_instr_counters", &resetInstrCounters);
+  m.def("read_instr_histograms", &readInstrHistograms);
+  m.attr("INSTR_HIST_N") = INSTR_HIST_N;
+  m.attr("INSTR_HIST_DX") = INSTR_HIST_DX;
 }
 
 }

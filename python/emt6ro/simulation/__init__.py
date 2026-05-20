@@ -1,4 +1,6 @@
 from .backend import _Experiment, load_parameters, load_state
+from .backend import read_instr_counters, reset_instr_counters, InstrCounters
+from .backend import read_instr_histograms, INSTR_HIST_N, INSTR_HIST_DX
 import numpy as np
 
 class Experiment:
