@@ -14,6 +14,33 @@
 #include "emt6ro/common/stack.cuh"
 #include "emt6ro/common/error.h"
 
+#ifdef EMT6RO_NVTX
+#include <nvToolsExt.h>
+#define EMT6RO_NVTX_RANGE(name) ::nvtxRangePushA(name)
+#define EMT6RO_NVTX_END() ::nvtxRangePop()
+#else
+#define EMT6RO_NVTX_RANGE(name) ((void)0)
+#define EMT6RO_NVTX_END() ((void)0)
+#endif
+
+#ifdef EMT6RO_TIMING
+// Record the start event for kernel slot `idx` on the simulation stream.
+#define EMT6RO_TIME_BEGIN(idx) ::cudaEventRecord(evt_start_[idx], str.stream_)
+// Record the stop event, wait for it, and add elapsed ms to `accumulator`.
+// Per-step host-side synchronisation cost is the price of a per-kernel
+// breakdown — turn EMT6RO_TIMING off for production runs.
+#define EMT6RO_TIME_END(idx, accumulator) do {                                  \
+    ::cudaEventRecord(evt_stop_[idx], str.stream_);                             \
+    ::cudaEventSynchronize(evt_stop_[idx]);                                     \
+    float _ms = 0.f;                                                            \
+    ::cudaEventElapsedTime(&_ms, evt_start_[idx], evt_stop_[idx]);              \
+    (accumulator) += _ms;                                                       \
+  } while (0)
+#else
+#define EMT6RO_TIME_BEGIN(idx) ((void)0)
+#define EMT6RO_TIME_END(idx, accumulator) ((void)0)
+#endif
+
 namespace emt6ro {
 
 namespace detail {
@@ -134,7 +161,26 @@ Simulation::Simulation(uint32_t batch_size, const Parameters &parameters, uint32
     , results(batch_size) {
   rand_state.init(seed, str.stream_);
   populateLattices();
+#ifdef EMT6RO_TIMING
+  for (int i = 0; i < 5; ++i) {
+    cudaEventCreate(&evt_start_[i]);
+    cudaEventCreate(&evt_stop_[i]);
+  }
+  events_inited_ = true;
+#endif
 }
+
+#ifdef EMT6RO_TIMING
+Simulation::~Simulation() {
+  if (events_inited_) {
+    for (int i = 0; i < 5; ++i) {
+      cudaEventDestroy(evt_start_[i]);
+      cudaEventDestroy(evt_stop_[i]);
+    }
+    events_inited_ = false;
+  }
+}
+#endif
 
 void Simulation::sendData(const HostGrid<Site> &grid, const Protocol &protocol, uint32_t multi) {
   assert(filled_samples + multi <= batch_size);
@@ -151,18 +197,43 @@ void Simulation::sendData(const HostGrid<Site> &grid, const Protocol &protocol, 
 }
 
 void Simulation::step() {
+  EMT6RO_NVTX_RANGE("step");
   if (step_ % 128 == 0) {
+    EMT6RO_NVTX_RANGE("findOccupied");
+    EMT6RO_TIME_BEGIN(0);
     detail::findOccupied
     <<<batch_size, detail::kFindOccupiedNthreads,
        detail::kFindOccupiedNthreads * sizeof(uint32_t), str.stream_>>>
     (lattices.data(), occupied.data());
+    EMT6RO_TIME_END(0, timers_.findOccupied_ms);
+    EMT6RO_NVTX_END();
   }
   if (step_ % 32 == 0) {
+    EMT6RO_NVTX_RANGE("updateROIs");
+    EMT6RO_TIME_BEGIN(1);
     updateROIs();
+    EMT6RO_TIME_END(1, timers_.updateROIs_ms);
+    EMT6RO_NVTX_END();
   }
-  diffuse();
-  simulateCells();
+  {
+    EMT6RO_NVTX_RANGE("diffuse");
+    EMT6RO_TIME_BEGIN(2);
+    diffuse();
+    EMT6RO_TIME_END(2, timers_.diffuse_ms);
+    EMT6RO_NVTX_END();
+  }
+  {
+    EMT6RO_NVTX_RANGE("simulateCells");
+    EMT6RO_TIME_BEGIN(3);
+    simulateCells();
+    EMT6RO_TIME_END(3, timers_.simulateCells_ms);
+    EMT6RO_NVTX_END();
+  }
+#ifdef EMT6RO_TIMING
+  ++timers_.n_steps;
+#endif
   ++step_;
+  EMT6RO_NVTX_END();
 }
 
 void Simulation::diffuse() {
@@ -184,10 +255,14 @@ void Simulation::updateROIs() {
 }
 
 void Simulation::getResults(uint32_t *h_results) {
+  EMT6RO_NVTX_RANGE("countLiving");
+  EMT6RO_TIME_BEGIN(4);
   countLiving(results.data(), data.data(), dims, batch_size, str.stream_);
   cudaMemcpyAsync(h_results, results.data(), batch_size * sizeof(uint32_t),
                   cudaMemcpyDeviceToHost, str.stream_);
+  EMT6RO_TIME_END(4, timers_.countLiving_ms);
   sync();
+  EMT6RO_NVTX_END();
 }
 
 void Simulation::run(uint32_t nsteps) {

@@ -133,6 +133,14 @@ class Experiment {
     return states;
   }
 
+  KernelTimers kernelTimers() const {
+    return simulation.getTimers();
+  }
+
+  void resetKernelTimers() {
+    simulation.resetTimers();
+  }
+
 };
 
 static py::array_t<float> getIrradiation(const HostGrid<Site> &state) {
@@ -206,13 +214,23 @@ PYBIND11_MODULE(backend, m) {
 
   py::class_<Parameters>(m, "Parameters");
 
+  py::class_<KernelTimers>(m, "KernelTimers")
+      .def_readonly("findOccupied_ms", &KernelTimers::findOccupied_ms)
+      .def_readonly("updateROIs_ms", &KernelTimers::updateROIs_ms)
+      .def_readonly("diffuse_ms", &KernelTimers::diffuse_ms)
+      .def_readonly("simulateCells_ms", &KernelTimers::simulateCells_ms)
+      .def_readonly("countLiving_ms", &KernelTimers::countLiving_ms)
+      .def_readonly("n_steps", &KernelTimers::n_steps);
+
   py::class_<Experiment>(m, "_Experiment")
       .def(py::init<const Parameters&, std::vector<HostGrid<Site>*>, int, int, int, int, int>())
       .def("run", &Experiment::run)
       .def("results", &Experiment::results)
       .def("add_irradiations", &Experiment::addIrradiations)
       .def("reset", &Experiment::reset)
-      .def("state", &Experiment::state);
+      .def("state", &Experiment::state)
+      .def("kernel_timers", &Experiment::kernelTimers)
+      .def("reset_kernel_timers", &Experiment::resetKernelTimers);
 
   m.def("load_parameters", &Parameters::loadFromJSONFile);
 

@@ -10,9 +10,27 @@
 
 namespace emt6ro {
 
+// Per-kernel CUDA-event timer totals, accumulated across all calls to
+// Simulation::step() since construction or the last resetTimers().
+// Populated only when the build flag EMT6RO_TIMING is defined; otherwise
+// every field stays at its default-constructed value. The host accessor
+// getTimers() is always present so the Python API surface is stable.
+struct KernelTimers {
+  float findOccupied_ms = 0.f;
+  float updateROIs_ms = 0.f;
+  float diffuse_ms = 0.f;
+  float simulateCells_ms = 0.f;
+  float countLiving_ms = 0.f;
+  uint64_t n_steps = 0;
+};
+
 class Simulation {
  public:
   Simulation(uint32_t batch_size, const Parameters &parameters, uint32_t seed);
+
+#ifdef EMT6RO_TIMING
+  ~Simulation();
+#endif
 
   Simulation& operator=(Simulation &&rhs) {
     if (&rhs == this)
@@ -30,6 +48,15 @@ class Simulation {
     results = std::move(rhs.results);
     step_ = rhs.step_;
     str = std::move(rhs.str);
+#ifdef EMT6RO_TIMING
+    timers_ = rhs.timers_;
+    for (int i = 0; i < 5; ++i) {
+      evt_start_[i] = rhs.evt_start_[i];
+      evt_stop_[i] = rhs.evt_stop_[i];
+    }
+    events_inited_ = rhs.events_inited_;
+    rhs.events_inited_ = false;  // prevent double-destroy in rhs's dtor
+#endif
     return *this;
   }
 
@@ -85,6 +112,23 @@ class Simulation {
     return dims;
   }
 
+  // Returns accumulated per-kernel ms since construction or resetTimers().
+  // Returns default-constructed KernelTimers (all zeros) in builds without
+  // EMT6RO_TIMING.
+  KernelTimers getTimers() const {
+#ifdef EMT6RO_TIMING
+    return timers_;
+#else
+    return KernelTimers{};
+#endif
+  }
+
+  void resetTimers() {
+#ifdef EMT6RO_TIMING
+    timers_ = KernelTimers{};
+#endif
+  }
+
  private:
   void populateLattices();
 
@@ -111,6 +155,13 @@ class Simulation {
   device::buffer<uint32_t> results;
   uint32_t step_ = 0;
   device::Stream str{};
+#ifdef EMT6RO_TIMING
+  // Indices: 0=findOccupied 1=updateROIs 2=diffuse 3=simulateCells 4=countLiving.
+  KernelTimers timers_{};
+  cudaEvent_t evt_start_[5]{};
+  cudaEvent_t evt_stop_[5]{};
+  bool events_inited_ = false;
+#endif
 };
 
 }  // namespace emt6ro

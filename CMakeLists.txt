@@ -25,6 +25,27 @@ if(EMT6RO_INSTRUMENT)
     message("-- EMT6RO instrumentation ENABLED")
 endif()
 
+# NVTX ranges around per-step kernel launches (findOccupied, updateROIs, diffuse,
+# simulateCells, countLiving). Cost is zero when no profiler is attached; turn
+# this on for builds that will be captured with `nsys profile -t cuda,nvtx ...`.
+# Default OFF so untouched builds stay byte-equivalent to current source.
+option(EMT6RO_NVTX "Emit NVTX ranges around per-step kernels" OFF)
+if(EMT6RO_NVTX)
+    add_compile_definitions(EMT6RO_NVTX)
+    link_libraries(nvToolsExt)
+    message("-- EMT6RO NVTX ranges ENABLED")
+endif()
+
+# Per-kernel CUDA-event timers. Accumulates ms spent in each kernel of the
+# inner loop and exposes totals via Experiment.get_kernel_timers() in Python.
+# Adds ~2 cudaEventRecord calls per kernel per step — negligible on Pascal+
+# but kept opt-in so default builds match the reference source byte-for-byte.
+option(EMT6RO_TIMING "Per-kernel CUDA-event timers" OFF)
+if(EMT6RO_TIMING)
+    add_compile_definitions(EMT6RO_TIMING)
+    message("-- EMT6RO per-kernel timing ENABLED")
+endif()
+
 # add_compile_options($<$<COMPILE_LANGUAGE:CUDA>:
 #                     -allow-unsuppported-compiler
 #                     >)

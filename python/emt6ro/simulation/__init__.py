@@ -1,6 +1,7 @@
 from .backend import _Experiment, load_parameters, load_state
 from .backend import read_instr_counters, reset_instr_counters, InstrCounters
 from .backend import read_instr_histograms, INSTR_HIST_N, INSTR_HIST_DX
+from .backend import KernelTimers
 import numpy as np
 
 class Experiment:
@@ -71,3 +72,17 @@ class Experiment:
 		Get all of the simlation grids
 		"""
 		return self._experiment.state()
+
+	def get_kernel_timers(self):
+		"""
+		Return accumulated per-kernel CUDA-event timings (ms) since
+		construction or the last reset_kernel_timers(). All fields are
+		zero in builds without -DEMT6RO_TIMING=ON.
+		"""
+		return self._experiment.kernel_timers()
+
+	def reset_kernel_timers(self):
+		"""
+		Zero per-kernel timing accumulators.
+		"""
+		self._experiment.reset_kernel_timers()
